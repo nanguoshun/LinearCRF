@@ -5,12 +5,31 @@
 
 Feature::Feature(std::vector<std::string> *ptr_observ_vector, std::vector<std::string> *ptr_tag_vector,
                  std::map<std::string, int> *ptr_x_corpus_map, std::map<std::string, int> *ptr_tag_map) {
+    ptr_f_e_ = new std::vector<double>;
+    ptr_f_empirical_e_ = new std::vector<double>;
+    ptr_feature_map_ = new std::map<std::pair<int, int>, int>;
+    ptr_feature_map_reverse_ = new std::map<int, std::pair<int, int>>;
+    CreateFeatureMap(ptr_observ_vector,ptr_tag_vector,ptr_x_corpus_map,ptr_tag_map);
+    ptr_w_vector_ = new std::vector<double>(ptr_feature_map_->size());
+    std::fill(ptr_w_vector_->begin(),ptr_w_vector_->end(),0);
+}
+
+Feature::~Feature() {
+    delete ptr_w_vector_;
+    delete ptr_feature_map_;
+    delete ptr_feature_map_reverse_;
+    delete ptr_f_e_;
+    delete ptr_f_empirical_e_;
+}
+
+void Feature::CreateFeatureMap(std::vector<std::string> *ptr_observ_vector, std::vector<std::string> *ptr_tag_vector,
+                               std::map<std::string, int> *ptr_x_corpus_map, std::map<std::string, int> *ptr_tag_map) {
     int offset = 0;
     //create transition features.
     for (int i = 0; i < ptr_tag_vector->size(); ++i) {
         int tag1 = ptr_tag_map->find((*ptr_tag_vector)[i])->second;
         int tag2 = ptr_tag_map->find((*ptr_tag_vector)[i + 1])->second;
-        std::pair tag_pair = std::make_pair(tag1, tag2);
+        std::pair<int,int> tag_pair = std::make_pair(tag1, tag2);
         //to avoid duplicate
         if (ptr_feature_map_->find(tag_pair) == ptr_feature_map_->end()) {
             ptr_feature_map_reverse_->insert(std::make_pair(i, tag_pair));
@@ -22,7 +41,7 @@ Feature::Feature(std::vector<std::string> *ptr_observ_vector, std::vector<std::s
     for (int i = 0; i < ptr_tag_vector->size(); ++i) {
         int tag1 = ptr_tag_map->find((*ptr_tag_vector)[i])->second;
         int ob1 = ptr_x_corpus_map->find((*ptr_observ_vector)[i])->second;
-        std::pair tag_obsv_pair = std::make_pair(tag1, ob1);
+        std::pair<int,int> tag_obsv_pair = std::make_pair(tag1, ob1);
         if (ptr_feature_map_->find(tag_obsv_pair) == ptr_feature_map_->end()) {
             ptr_feature_map_reverse_->insert(std::make_pair((i + offset), tag_obsv_pair));
             ptr_feature_map_->insert(std::make_pair(tag_obsv_pair, (i + offset)));

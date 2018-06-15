@@ -9,10 +9,12 @@ CRFLearning::CRFLearning(DatasetMgr *ptr_datamgr) {
     loss_value_ = 0;
     ptr_x_corpus_ = new std::vector<std::string>;
     ptr_x_corpus_map_ = new std::map<std::string, int>;
+    ptr_tag_map_ = new std::map<std::string, int>;
     ptr_x_set_ = ptr_datamgr_->GetTrainingXSet();
     ptr_tag_vector_ = ptr_datamgr_->GetTageVector();
     ptr_x_vector_  = ptr_datamgr_->GetTrainingXVector();
     ptr_tag_set_ = ptr_datamgr_->GetTagSet();
+    Init();
 }
 
 void CRFLearning::Init() {
@@ -24,19 +26,20 @@ void CRFLearning::Init() {
         ptr_x_corpus_->push_back((*it));
         index++;
     }
-    index = 0
+    index = 0;
     for(std::set<std::string>::iterator it = ptr_tag_set_->begin(); it!= ptr_tag_set_->end(); ++it){
         ptr_tag_map_->insert(std::make_pair((*it),index));
         index++;
     }
     ptr_feature_ = new Feature(ptr_x_vector_,ptr_tag_vector_,ptr_x_corpus_map_,ptr_tag_map_);
-
 }
 
 CRFLearning::~CRFLearning() {
     delete ptr_x_corpus_;
     delete ptr_x_corpus_map_;
-
+    delete ptr_tag_map_;
+    DeleteLattice(*ptr_x_vector_);
+    //to be completed....
 }
 
 void CRFLearning::DeleteLattice(std::vector<std::string> seq) {

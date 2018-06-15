@@ -23,7 +23,8 @@ public:
     double GetFeatureExpectation(int index);
     double GetEmpiricalFeatureExpectation(int index);
     int GetFeatureSize();
-
+    void CreateFeatureMap(std::vector<std::string> *ptr_observ_vector, std::vector<std::string> *ptr_tag_vector,
+                          std::map<std::string, int> *ptr_x_corpus_map, std::map<std::string, int> *ptr_tag_map);
 private:
     //weight vector.
     std::vector<double> *ptr_w_vector_;
