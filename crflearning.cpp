@@ -437,9 +437,9 @@ void CRFLearning::Learning() {
         if(std::abs(loss_value) - std::abs(loss_value_) < CONVERGED_VALUE){
             loss_value_ = loss_value;
         } else{
-            //std::cout << "Training completed"<<std::endl;
-            //is_converged_ = true;
-            //return;
+            std::cout << "Training completed"<<std::endl;
+            is_converged_ = true;
+            return;
         }
     }
 }
