@@ -29,6 +29,8 @@ void Feature::CreateFeatureMap(std::vector<std::string> *ptr_observ_vector, std:
     for (int i = 0; i < ptr_tag_vector->size()-1; ++i) {
         int tag1 = ptr_tag_map->find((*ptr_tag_vector)[i])->second;
         int tag2 = ptr_tag_map->find((*ptr_tag_vector)[i + 1])->second;
+        std::cout << "Feature index:"<<index_offset<<", the string and tag code are: "<<
+                  (*ptr_tag_vector)[i]<<","<<(*ptr_tag_vector)[i+1]<<":"<<tag1<<","<<tag2<<std::endl;
         std::pair<int,int> tag_pair = std::make_pair(tag1, tag2);
         //to avoid duplicate
         if (ptr_feature_map_->find(tag_pair) == ptr_feature_map_->end()) {
@@ -44,6 +46,8 @@ void Feature::CreateFeatureMap(std::vector<std::string> *ptr_observ_vector, std:
         int ob1 = ptr_x_corpus_map->find((*ptr_observ_vector)[i])->second + FEATURE_CODE_OFFSET;
         int tag1 = ptr_tag_map->find((*ptr_tag_vector)[i])->second;
         std::pair<int,int> tag_obsv_pair = std::make_pair(ob1,tag1);
+        std::cout << "Feature index:"<<feature_size_edge_ + index_offset<<", the string and tag code are: "<<
+                  (*ptr_observ_vector)[i]<<","<<(*ptr_tag_vector)[i]<<":"<<ob1<<","<<tag1<<std::endl;
         if (ptr_feature_map_->find(tag_obsv_pair) == ptr_feature_map_->end()) {
             ptr_reverse_feature_map_->insert(std::make_pair((index_offset + feature_size_edge_), tag_obsv_pair));
             ptr_feature_map_->insert(std::make_pair(tag_obsv_pair, (index_offset + feature_size_edge_)));
@@ -55,7 +59,7 @@ void Feature::CreateFeatureMap(std::vector<std::string> *ptr_observ_vector, std:
 }
 
 void Feature::CalcCost(Node *ptrnode) {
-    double cost = 0;
+    double cost = 1;
     int observation = ptrnode->GetX();
     int y = ptrnode->GetY();
     int index = GetFeatureIndex(std::make_pair((observation+FEATURE_CODE_OFFSET),y));
@@ -67,7 +71,7 @@ void Feature::CalcCost(Node *ptrnode) {
 }
 
 void Feature::CalcCost(Path *ptrpath) {
-    double cost = 0;
+    double cost = 1;
     int lnodeY = ptrpath->GetLNode()->GetY();
     int rnodeY = ptrpath->GetRNode()->GetY();
     int index = GetFeatureIndex(std::make_pair(lnodeY, rnodeY));
@@ -77,10 +81,10 @@ void Feature::CalcCost(Path *ptrpath) {
         cost = exp(weight);
     }
     if (lnodeY == START_NODE_FLAG) {
-        cost = exp(1);
+        cost = exp(0);
     }
     if (rnodeY == STOP_NODE_FLAG){
-        cost = exp(1);
+        cost = exp(0);
     }
     ptrpath->SetCost(cost);
 }

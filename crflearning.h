@@ -31,7 +31,8 @@ public:
     void BuildRPath(std::vector<std::string> seq);
     void DeleteLattice(std::vector<std::string> seq);
     void UpdateWeight();
-    void Viterbi();
+    void Viterbi(std::vector<std::string> seq);
+    void ViterbiBackTracking(std::vector<std::string> seq);
 private:
     DatasetMgr *ptr_datamgr_;
     double loss_value_;
@@ -47,7 +48,9 @@ private:
     std::vector<std::string> *ptr_tag_vector_;
     std::set<std::string> *ptr_tag_set_;
     std::map<std::string, int> *ptr_tag_map_;
+    std::map<int, std::string> *ptr_tag_map_reverse_;
     std::map<std::string, int> *ptr_x_corpus_map_;
+    std::map<int, std::string> *ptr_x_corpus_map_reverse_;
     std::vector<std::string> *ptr_x_corpus_;
     //feature related
     Feature *ptr_feature_;
@@ -56,6 +59,7 @@ private:
     std::vector<double> *ptr_e_;
     bool is_initialized_;
     bool is_converged_;
+    std::vector<std::string> *ptr_decoded_tag_;
 };
 
 #endif //CRF_CRF_LEARNING_H

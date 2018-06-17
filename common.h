@@ -36,6 +36,8 @@ const int STOP_NODE_FLAG = -2;
 
 #define TEST_MODE = 100;
 
+//#define DEBUG_MODE = 200;
+#define DEBUG_MODE_ = 200;
 
 struct HMMParameters{
     size_t  num_of_state_;

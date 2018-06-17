@@ -4,7 +4,7 @@
 #include "datasetmgr.h"
 #include <cctype>
 
-DatasetMgr::DatasetMgr(const char *training_file, bool is_sentence_level){
+DatasetMgr::DatasetMgr(bool is_sentence_level){
     is_sentence_level_ = is_sentence_level;
     ptr_line_ = new char[LINE_MAX_SIZE]();
     ptr_tag_set_ = new std::set<std::string>();

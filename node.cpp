@@ -20,7 +20,9 @@ Node::~Node() {
     for (std::vector<Path *>::iterator it = lpath_.begin(); it!=lpath_.end();++it){
         delete (*it);
     }
-    lpath_.clear();
+    for (std::vector<Path *>::iterator it = rpath_.begin(); it!=rpath_.end();++it){
+        delete (*it);
+    }
 }
 
 
@@ -108,4 +110,20 @@ void Node::SetFeatureIndex(int index) {
 
 int Node::GetFeatureIndex() {
     return  feature_index_;
+}
+
+double Node::GetBestCost() {
+    return bestCost_;
+}
+
+void Node::SetBestCost(double cost) {
+    bestCost_ = cost;
+}
+
+void Node::SetPreNode(Node *pNode) {
+    ptr_pre_node_ = pNode;
+}
+
+Node* Node::GetPreNode() {
+    return ptr_pre_node_;
 }

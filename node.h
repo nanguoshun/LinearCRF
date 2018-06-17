@@ -49,6 +49,10 @@ public:
     void AddPath(Path *ptr_path, bool isLpath);
     void SetFeatureIndex(int index);
     int GetFeatureIndex();
+    double GetBestCost();
+    void SetBestCost(double cost);
+    Node *GetPreNode();
+    void SetPreNode(Node *pNode);
 private:
     int x_;
     int y_;
@@ -58,7 +62,7 @@ private:
     double beta_;
     double expectation_;
     double bestCost_; //for viterbi;
-    Node *pre_; // for viterbi;
+    Node *ptr_pre_node_; // for viterbi;
     std::vector<Path *> lpath_; //edges in the left
     std::vector<Path *> rpath_; //edges in the right
 };

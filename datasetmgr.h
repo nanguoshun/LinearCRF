@@ -16,12 +16,10 @@ class Data{
 
 };
 class DatasetMgr{
-
     public:
-    explicit DatasetMgr(const char *training_file, bool isSentenceLevel);
+    explicit DatasetMgr(bool isSentenceLevel);
     ~DatasetMgr();
     bool OpenDataSet(const char *file_name, bool is_training);
-
     void OpenTrainSet(std::vector<std::string> *ptr_vector, bool is_sentence_level);
     void OpenTestSet(std::vector<std::string> *ptr_vector);
     bool Tokenized(char* ptr_line, const char* ptr_space, std::vector<std::string> *ptr_string_line, size_t tag_maxsize, bool istraining);
