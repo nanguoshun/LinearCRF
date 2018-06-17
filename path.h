@@ -22,10 +22,12 @@ public:
     void SetCost(double cost);
 
     //
-    void CalcExpectation(double Z);
+    void CalcExpectation(double Z,std::vector<double> *ptr_expectation);
 
     //
     void AddNode(Node *ptr_lnode, Node *ptr_rnode);
+    void SetFeatureIndex(int index);
+    int GetFeatureIndex();
 
 private:
 
@@ -35,6 +37,7 @@ private:
     double cost_;
     //
     double expectation_;
+    int feature_index_;
 };
 
 #endif //CRF_PATH_H

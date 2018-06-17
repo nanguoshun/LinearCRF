@@ -28,9 +28,14 @@ const int RAND_MAX_NUM = 100;
 
 const double LEARNING_RATE = 0.05;
 const double L2_FACTOR = 1;
-const double CONVERGED_VALUE = 0.5;
+const double CONVERGED_VALUE = 1;
+const int FEATURE_CODE_OFFSET = 500;
+const int FEATURE_NO_EXIST = -100;
+const int START_NODE_FLAG = -1;
+const int STOP_NODE_FLAG = -2;
 
 #define TEST_MODE = 100;
+
 
 struct HMMParameters{
     size_t  num_of_state_;

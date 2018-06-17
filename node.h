@@ -7,6 +7,7 @@
 
 #include <vector>
 #include <string>
+#include <map>
 
 class Path;
 
@@ -16,7 +17,7 @@ public:
     ~Node();
     void CalcAlpha();
     void CalcBeta();
-    void CalcExpectation(double Z);
+    void CalcExpectation(double Z, std::vector<double> *ptr_expectation);
     void SetCost(double cost);
     /**
      *
@@ -36,7 +37,9 @@ public:
         }
     }
     double GetAlpha();
+    void SetAlpha(double alpha);
     double GetBeta();
+    void SetBeta(double beta);
     int GetX();
     int GetY();
     double GetCost();
@@ -44,9 +47,12 @@ public:
     std::vector<Path *> GetRPath();
     double GetExpectation();
     void AddPath(Path *ptr_path, bool isLpath);
+    void SetFeatureIndex(int index);
+    int GetFeatureIndex();
 private:
     int x_;
     int y_;
+    int feature_index_;
     double cost_;
     double alpha_;
     double beta_;
