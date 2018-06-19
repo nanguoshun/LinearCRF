@@ -28,7 +28,10 @@ public:
     void AddNode(Node *ptr_lnode, Node *ptr_rnode);
     void SetFeatureIndex(int index);
     int GetFeatureIndex();
-
+    void SetPathID(std::pair<int, int> id);
+    std::pair<int, int> GetPathID();
+    bool isCalculated();
+    void SetCalculatedFlag(bool isCalc);
 private:
 
     Node *ptr_lnode_; //left node on an edge
@@ -38,6 +41,8 @@ private:
     //
     double expectation_;
     int feature_index_;
+    std::pair<int, int> path_id_;
+    double is_calculated_;
 };
 
 #endif //CRF_PATH_H

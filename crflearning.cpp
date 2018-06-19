@@ -38,7 +38,7 @@ void CRFLearning::Init(std::vector<std::string> seq) {
         ptr_tag_map_reverse_->insert(std::make_pair(index,(*it)));
         index++;
     }
-    ptr_feature_ = new Feature(ptr_x_vector_,ptr_tag_vector_,ptr_x_corpus_map_,ptr_tag_map_);
+    ptr_feature_ = new Feature(ptr_x_vector_,ptr_tag_vector_,ptr_x_corpus_map_,ptr_tag_map_reverse_);
     tag_num_ = ptr_tag_set_->size();
     ptr_feature_vector_ = new std::vector<std::pair<int, int>>;
     ptr_empirical_e_ = new std::vector<double>(ptr_feature_->GetFeatureSize());
@@ -77,6 +77,10 @@ void CRFLearning::DeleteLattice(std::vector<std::string> seq) {
     }
 }
 
+void CRFLearning::ResetParameters() {
+    std::fill(ptr_e_->begin(),ptr_e_->end(),0);
+}
+
 void CRFLearning::BuildLattice(std::vector<std::string> seq) {
     BuildNode(seq);
     BuildLPath(seq);
@@ -85,13 +89,16 @@ void CRFLearning::BuildLattice(std::vector<std::string> seq) {
 
 void CRFLearning::BuildNode(std::vector<std::string> seq) {
     ptr_start_node_ = new Node(START_NODE_FLAG, START_NODE_FLAG);
+    ptr_start_node_->SetNodeID(START_NODE_ID);
     ptr_stop_node_  = new Node(seq.size(),STOP_NODE_FLAG);
+    ptr_stop_node_->SetNodeID(STOP_NODE_ID);
     //create each row
     for(int i=0; i<seq.size(); ++i){
         std::vector<Node *> *ptr_node_vector = new std::vector<Node *>;
         node_matrix_.push_back(*ptr_node_vector);
     }
     //create node in each row
+    int node_id = 0;
     for(int i=0; i<seq.size(); ++i){
         for(std::set<std::string>::iterator it = ptr_tag_set_->begin(); it!=ptr_tag_set_->end(); ++it){
             std::cout << "the string value of x and y are: "<<(*ptr_x_vector_)[i]<<", "<<(*it)<<std::endl;
@@ -104,7 +111,9 @@ void CRFLearning::BuildNode(std::vector<std::string> seq) {
                 feature_index = ptr_feature_->GetFeatureMap()->find(std::make_pair((observ+FEATURE_CODE_OFFSET),tag))->second;
             }
             pnode->SetFeatureIndex(feature_index);
+            pnode->SetNodeID(node_id);
             node_matrix_[i].push_back(pnode);
+            node_id++;
         }
     }
 }
@@ -115,6 +124,15 @@ void CRFLearning::BuildLPath(std::vector<std::string> seq) {
         for(int j=0; j<tag_num_;++j){
             if(i==0){
                 Path *ppath = new Path(ptr_start_node_,node_matrix_[i][j]);
+                int tag1 = START_NODE_FLAG;
+                int tag2 = node_matrix_[i][j]->GetY();
+                //set feature index for each path (edge)
+                int feature_index = FEATURE_NO_EXIST;
+                if(ptr_feature_->GetFeatureMap()->find(std::make_pair(tag1,tag2)) != ptr_feature_->GetFeatureMap()->end()){
+                    feature_index = ptr_feature_->GetFeatureMap()->find(std::make_pair(tag1,tag2))->second;
+                }
+                ppath->SetFeatureIndex(feature_index);
+                ppath->SetPathID(std::make_pair(ptr_start_node_->GetNodeID(),node_matrix_[i][j]->GetNodeID()));
                 node_matrix_[i][j]->AddPath(ppath, true);
             } else{
                 for(int k=0; k<tag_num_; ++k){
@@ -128,6 +146,7 @@ void CRFLearning::BuildLPath(std::vector<std::string> seq) {
                         feature_index = ptr_feature_->GetFeatureMap()->find(std::make_pair(tag1,tag2))->second;
                     }
                     ppath->SetFeatureIndex(feature_index);
+                    ppath->SetPathID(std::make_pair(node_matrix_[i-1][k]->GetNodeID(),node_matrix_[i][j]->GetNodeID()));
                     node_matrix_[i][j]->AddPath(ppath, true);
                 }
             }
@@ -136,6 +155,7 @@ void CRFLearning::BuildLPath(std::vector<std::string> seq) {
     //create the left path vector for the stop node;
     for(int k=0; k<tag_num_; ++k){
         Path *ppath = new Path(node_matrix_[seq.size()-1][k],ptr_stop_node_);
+        ppath->SetPathID(std::make_pair(node_matrix_[seq.size()-1][k]->GetNodeID(),ptr_stop_node_->GetNodeID()));
         ptr_stop_node_->AddPath(ppath, true);
     }
 }
@@ -146,10 +166,28 @@ void CRFLearning::BuildRPath(std::vector<std::string> seq) {
         for(int j=0; j<tag_num_; ++j){
             if(i == seq.size()-1){
                 Path *ppath = new Path(node_matrix_[i][j],ptr_stop_node_);
+                ppath->SetPathID(std::make_pair(node_matrix_[i][j]->GetNodeID(), ptr_stop_node_->GetNodeID()));
+                int tag1 = node_matrix_[i][j]->GetY();
+                int tag2 = STOP_NODE_FLAG;
+                int feature_index = FEATURE_NO_EXIST;
+                if(ptr_feature_->GetFeatureMap()->find(std::make_pair(tag1,tag2)) != ptr_feature_->GetFeatureMap()->end()){
+                    feature_index = ptr_feature_->GetFeatureMap()->find(std::make_pair(tag1,tag2))->second;
+                }
+                ppath->SetFeatureIndex(feature_index);
                 node_matrix_[i][j]->AddPath(ppath, false);
+
             }else{
                 for(int k=0; k<tag_num_; ++k){
                     Path *ppath = new Path(node_matrix_[i][j], node_matrix_[i+1][k]);
+                    ppath->SetPathID(std::make_pair(node_matrix_[i][j]->GetNodeID(),node_matrix_[i+1][k]->GetNodeID()));
+                    int tag1 = node_matrix_[i][j]->GetY();
+                    int tag2 = node_matrix_[i+1][k]->GetY();
+                    //set feature index for each path (edge)
+                    int feature_index = FEATURE_NO_EXIST;
+                    if(ptr_feature_->GetFeatureMap()->find(std::make_pair(tag1,tag2)) != ptr_feature_->GetFeatureMap()->end()){
+                        feature_index = ptr_feature_->GetFeatureMap()->find(std::make_pair(tag1,tag2))->second;
+                    }
+                    ppath->SetFeatureIndex(feature_index);
                     node_matrix_[i][j]->AddPath(ppath,false);
                 }
             }
@@ -158,16 +196,16 @@ void CRFLearning::BuildRPath(std::vector<std::string> seq) {
     //create the right path vector for the start node;
     for(int k=0; k<tag_num_; ++k){
         Path *ppath = new Path(ptr_start_node_,node_matrix_[0][k]);
+        int tag1 = START_NODE_FLAG;
+        int tag2 = node_matrix_[0][k]->GetY();
+        //set feature index for each path (edge)
+        int feature_index = FEATURE_NO_EXIST;
+        if(ptr_feature_->GetFeatureMap()->find(std::make_pair(tag1,tag2)) != ptr_feature_->GetFeatureMap()->end()){
+            feature_index = ptr_feature_->GetFeatureMap()->find(std::make_pair(tag1,tag2))->second;
+        }
+        ppath->SetFeatureIndex(feature_index);
+        ppath->SetPathID(std::make_pair(ptr_stop_node_->GetNodeID(),node_matrix_[0][k]->GetNodeID()));
         ptr_start_node_->AddPath(ppath, false);
-    }
-}
-
-void CRFLearning::UpdateWeight() {
-    std::vector<double> *ptr_weight = ptr_feature_->GetWeightVector();
-    int size = ptr_feature_->GetFeatureSize();
-    for(int k=0; k<size; ++k){
-        double weight = (*ptr_weight)[k] - LEARNING_RATE * (*ptr_gradient_)[k];
-        ptr_feature_->SetWeightVector(k,weight);
     }
 }
 
@@ -180,7 +218,7 @@ double CRFLearning::CalcEmpiricalFi(std::vector<std::string> seq) {
     for(int i=0; i<tag_size-1; ++i){
         int y_i_1 = ptr_tag_map_->find((*ptr_tag_vector_)[i])->second;
         int y_i =   ptr_tag_map_->find((*ptr_tag_vector_)[i+1])->second;
-        int index = ptr_feature_->GetFeatureMap()->find(std::make_pair(y_i_1,y_i))->second;
+        int index = ptr_feature_->GetFeatureIndex(std::make_pair(y_i_1,y_i));
         //count the num for each tag sequence
         (*ptr_empirical_e_)[index] += 1;
 #ifdef DEBUG_MODE
@@ -192,7 +230,7 @@ double CRFLearning::CalcEmpiricalFi(std::vector<std::string> seq) {
             int x = ptr_x_corpus_map_->find(seq[i])->second + FEATURE_CODE_OFFSET;
             int y = ptr_tag_map_->find((*ptr_tag_vector_)[i])->second;
             if(ptr_feature_->GetFeatureMap()->find(std::make_pair(x,y)) != ptr_feature_->GetFeatureMap()->end()){
-                int index = ptr_feature_->GetFeatureMap()->find(std::make_pair(x,y))->second;
+                int index = ptr_feature_->GetFeatureIndex(std::make_pair(x,y));
                 //count the num for each
                 (*ptr_empirical_e_)[index] += 1;
                 //std::cout << "the observ and tag are "<< seq[i] <<"," << (*ptr_tag_vector_)[i] <<",index is:"<<index<<std::endl;
@@ -200,6 +238,13 @@ double CRFLearning::CalcEmpiricalFi(std::vector<std::string> seq) {
                 std::cout << "the value of observ and tag "<<x<< ", "<<y << " is: "<< (*ptr_empirical_e_)[index] <<std::endl;
 #endif
             }
+    }
+}
+
+void CRFLearning::CalcEP(std::vector<std::string> seq) {
+    int x_size = seq.size();
+    for(int i=0; i<ptr_feature_->GetFeatureSize(); ++i){
+        ptr_feature_->GetReverseFeatureMap()->find(i)->second;
     }
 }
 
@@ -216,6 +261,10 @@ void CRFLearning::CalcFeatureExpectation(std::vector<std::string> seq) {
             //for (std::vector<Path *>::iterator it = lpath.begin();  it!=lpath.end() ; ++it) {
              //   }
         }
+    }
+    std::vector<Path *> ppath = ptr_start_node_->GetRPath();
+    for(std::vector<Path *>::iterator it = ppath.begin();it!=ppath.end();++it) {
+        (*it)->CalcExpectation(Z_, ptr_e_);
     }
     //summation
     /*
@@ -236,49 +285,14 @@ void CRFLearning::CalcFeatureExpectation(std::vector<std::string> seq) {
 #endif
 }
 
-void CRFLearning::CalcEdgeFeatureExpectation(int index, std::pair<int, int> feature) {
-    //for trans feature
-    int y_i_1 = feature.first;
-    int y_i = feature.second;
-    //summation over a tag instance.
-    for(int i=0; i<ptr_tag_vector_->size()-1; ++i){
-        int tag1 = ptr_tag_map_->find((*ptr_tag_vector_)[i])->second;
-        int tag2 = ptr_tag_map_->find((*ptr_tag_vector_)[i+1])->second;
-        //if it is exactly the edge that is bundled to the feature. here, an edge indicates two tag.
-        if(y_i_1==tag1 && y_i == tag2){
-            (*ptr_e_)[index] +=  node_matrix_[y_i_1][y_i]->GetExpectation();
-#ifdef DEBUG_MODE
-            std::cout << "the expectation of edge "<<y_i_1<< ", "<<y_i << " is: "<< (*ptr_e_)[index] <<std::endl;
-#endif
-        }
-    }
-}
-
-void CRFLearning::CalcNodeFeatureExpectation(int index, std::pair<int, int> feature) {
-//for emission feature
-    for (int i = 0; i < ptr_tag_vector_->size(); ++i) {
-        std::cout << "the observ and tag is: " << (*ptr_x_vector_)[i] + SPERATOR_FLAG + (*ptr_tag_vector_)[i]
-                  << std::endl;
-    }
-    int x = feature.first - FEATURE_CODE_OFFSET;
-    int y = feature.second;
-    for (int i = 0; i < ptr_x_vector_->size(); ++i) {
-        int observ = ptr_x_corpus_map_->find((*ptr_x_vector_)[i])->second;
-        int tag = ptr_tag_map_->find((*ptr_tag_vector_)[i])->second;
-        if (observ == x && tag == y) {
-            (*ptr_e_)[index] += node_matrix_[i][y]->GetExpectation();
-#ifdef DEBUG_MODE
-            std::cout << "the expectation of oberv and tag " << x << ", " << y << " is: " << (*ptr_e_)[index]
-                      << std::endl;
-#endif
-        }
-    }
-}
-
 //cost indicates w_k * \phi_k(s', s, x)
 void CRFLearning::CalcCost(std::vector<std::string> seq) {
-    ptr_stop_node_->SetCost(exp(0));
-    ptr_start_node_->SetCost(exp(0));
+    ptr_start_node_->SetCost(1);
+    ptr_stop_node_->SetCost(1);
+    std::vector< Path*> ptr_start_rpath = ptr_start_node_->GetRPath();
+    for(std::vector< Path*>::iterator it = ptr_start_rpath.begin(); it!= ptr_start_rpath.end(); ++it){
+        ptr_feature_->CalcCost((*it));
+    }
     for(int i=0; i<seq.size(); ++i){
         for(int j=0; j<tag_num_; ++j){
             //calc node cost
@@ -292,7 +306,7 @@ void CRFLearning::CalcCost(std::vector<std::string> seq) {
 #ifdef DEBUG_MODE
             if(i==seq.size()-1){
                 std::cout << "this is the last row"<<std::endl;
-                }
+            }
 #endif
             for(std::vector<Path *>::iterator it = rpath.begin(); it!=rpath.end(); ++it){
                 ptr_feature_->CalcCost(*it);
@@ -312,7 +326,7 @@ void CRFLearning::CalcGradient(std::vector<std::string> seq) {
         double empirical_e_k = (*ptr_empirical_e_)[k];
         double e_k = (*ptr_e_)[k];
         double pre_w_k = (*ptr_weight)[k];
-        double penalty = pre_w_k / (L2_FACTOR * L2_FACTOR);
+        double penalty = 0; //pre_w_k / (L2_FACTOR * L2_FACTOR);
         (*ptr_gradient_)[k] = empirical_e_k - e_k -penalty;
 #ifdef DEBUG_MODE_
         std::cout << "the gradient of the "<<k<<"th feature is: "<<(*ptr_gradient_)[k]<<std::endl;
@@ -320,18 +334,28 @@ void CRFLearning::CalcGradient(std::vector<std::string> seq) {
     }
 }
 
+void CRFLearning::UpdateWeight() {
+    std::vector<double> *ptr_weight = ptr_feature_->GetWeightVector();
+    int size = ptr_feature_->GetFeatureSize();
+    for(int k=0; k<size; ++k){
+        double weight = (*ptr_weight)[k] - LEARNING_RATE * (*ptr_gradient_)[k];
+        ptr_feature_->SetWeightVector(k,weight);
+    }
+}
+
 //calc the loss function.
 double CRFLearning::CalcLoglikelihoodFunction(std::vector<std::string> seq) {
     int feature_size = ptr_feature_->GetFeatureSize();
-    double sum_numerator = std::accumulate(ptr_feature_->GetWeightVector()->begin(), ptr_feature_->GetWeightVector()->end(), 0.0f);
+    std::vector<double > *ptr_weight = ptr_feature_->GetWeightVector();
+    double sum_numerator = (*ptr_weight)[2] + (*ptr_weight)[5] + (*ptr_weight)[6];
     double sum_denominator = log(Z_);
     double l2 = 0;
-    for (int i = 0; i < feature_size; i++) {
+    for (int i = 0; i < feature_size; ++i) {
         double w = (*(ptr_feature_->GetWeightVector()))[i];
         l2 += (w * w) / (2 * L2_FACTOR * L2_FACTOR);
     }
-    double loglikelihood = sum_numerator - sum_denominator - l2;
-    return loglikelihood;
+    l2 = 0;
+    return  sum_numerator - sum_denominator - l2;
 }
    
 //calc alpha and beta and Z for all nodes in the graph.
@@ -412,11 +436,36 @@ void CRFLearning::Viterbi(std::vector<std::string> seq) {
 void CRFLearning::ViterbiBackTracking(std::vector<std::string> seq) {
     Node *ptr_node = ptr_stop_node_->GetPreNode();
     std::string str = ptr_tag_map_reverse_->find(ptr_node->GetY())->second;
+    std::cout << "tag inferred by viterbi is:"<<str<<std::endl;
     (*ptr_decoded_tag_)[seq.size() - 1] = str;
     for (int i = seq.size() - 2; i >= 0; --i) {
         ptr_node = ptr_node->GetPreNode();
         str = ptr_tag_map_reverse_->find(ptr_node->GetY())->second;
         (*ptr_decoded_tag_)[i] = str;
+        std::cout << "tag inferred by viterbi is:"<<str<<std::endl;
+    }
+}
+
+
+void CRFLearning::PrintPath(Node *pNode) {
+    if(pNode->GetNodeID() == START_NODE_ID){
+        return;
+    }
+    std::vector<Path* > pPath = pNode->GetLPath();
+    for(std::vector<Path *>::iterator it = pPath.begin(); it != pPath.end(); ++it){
+        std::string lstr = ptr_tag_map_reverse_->find((*it)->GetLNode()->GetY())->second;
+        if((*it)->GetLNode()->GetNodeID()==START_NODE_ID){
+            lstr = "START_NODE";
+        }
+        std::string rstr;
+        if(pNode->GetNodeID() == STOP_NODE_ID){
+            rstr = "STOP_NODE";
+        }else{
+            rstr = ptr_tag_map_reverse_->find(pNode->GetY())->second;
+        }
+        std::cout <<"the feature(t) id is"<<(*it)->GetFeatureIndex()<<" and pair is "<<lstr<<","<<rstr<<std::endl;
+        //std::cout <<"the feature(e) id is"<<(*it)->GetLNode()->GetFeatureIndex()<<std::endl;
+        PrintPath((*it)->GetLNode());
     }
 }
 
@@ -427,19 +476,28 @@ void CRFLearning::Learning() {
         is_initialized_ = true;
     }
     BuildLattice(seq);
+    //for test only;
+#ifdef DEBUG_MODE
+    PrintPath(ptr_stop_node_);
+#endif
     //training
     while(!is_converged_){
+        ResetParameters();
         CalcGradient(seq);
         UpdateWeight();
         //calc loss function
         double loss_value = CalcLoglikelihoodFunction(seq);
+        if(loss_value >=-0.6){
+            std::cout << "stop here"<<std::endl;
+        }
         std::cout << "loglikelihood is:"<<loss_value<<std::endl;
         if(std::abs(loss_value) - std::abs(loss_value_) < CONVERGED_VALUE){
             loss_value_ = loss_value;
         } else{
             std::cout << "Training completed"<<std::endl;
-            is_converged_ = true;
-            return;
+            //is_converged_ = true;
         }
     }
+    Viterbi(seq);
 }
+

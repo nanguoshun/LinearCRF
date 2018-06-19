@@ -21,8 +21,9 @@ public:
     void CalcGradient(std::vector<std::string> seq);
     void CalcCost(std::vector<std::string> seq);
     void CalcFeatureExpectation(std::vector<std::string> seq);
-    void CalcNodeFeatureExpectation(int index, std::pair<int, int> feature);
-    void CalcEdgeFeatureExpectation(int index, std::pair<int, int> feature);
+    void CalcEP(std::vector<std::string> seq);
+    //void CalcNodeFeatureExpectation(int index, std::pair<int, int> feature);
+    //void CalcEdgeFeatureExpectation(int index, std::pair<int, int> feature);
     double CalcEmpiricalFi(std::vector<std::string> seq);
     void ForwardBackward(std::vector<std::string> seq);
     void BuildLattice(std::vector<std::string> seq);
@@ -33,6 +34,8 @@ public:
     void UpdateWeight();
     void Viterbi(std::vector<std::string> seq);
     void ViterbiBackTracking(std::vector<std::string> seq);
+    void ResetParameters();
+    void PrintPath(Node *pNode);
 private:
     DatasetMgr *ptr_datamgr_;
     double loss_value_;

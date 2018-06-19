@@ -26,9 +26,9 @@ const double INITIAL_LOG_LIKEIHOOD = 10000;
 const double ALPHA_START = 0.01;
 const int RAND_MAX_NUM = 100;
 
-const double LEARNING_RATE = 0.05;
+const double LEARNING_RATE = 0.01;
 const double L2_FACTOR = 1;
-const double CONVERGED_VALUE = 1;
+const double CONVERGED_VALUE = 1.2;
 const int FEATURE_CODE_OFFSET = 500;
 const int FEATURE_NO_EXIST = -100;
 const int START_NODE_FLAG = -1;
@@ -36,8 +36,11 @@ const int STOP_NODE_FLAG = -2;
 
 #define TEST_MODE = 100;
 
+const int START_NODE_ID = 100000;
+const int STOP_NODE_ID =  200000;
+
 //#define DEBUG_MODE = 200;
-#define DEBUG_MODE_ = 200;
+//#define DEBUG_MODE_ = 200;
 
 struct HMMParameters{
     size_t  num_of_state_;

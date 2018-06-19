@@ -3,4 +3,4 @@ project(CRF)
 
 set(CMAKE_CXX_STANDARD 11)
 
-add_executable(CRF main.cpp crflearning.h crflearning.cpp datasetmgr.h datasetmgr.cpp node.h node.cpp path.h path.cpp featuremanager.h featuremanager.cpp)
+add_executable(CRF main.cpp crflearning.h crflearning.cpp datasetmgr.h datasetmgr.cpp node.h node.cpp path.h path.cpp featuremanager.h featuremanager.cpp decode.h decode.cpp)
