@@ -26,7 +26,7 @@ const double INITIAL_LOG_LIKEIHOOD = 10000;
 const double ALPHA_START = 0.01;
 const int RAND_MAX_NUM = 100;
 
-const double LEARNING_RATE = 0.01;
+const double LEARNING_RATE = 0.05;
 const double L2_FACTOR = 1;
 const double CONVERGED_VALUE = 1.2;
 const int FEATURE_CODE_OFFSET = 500;

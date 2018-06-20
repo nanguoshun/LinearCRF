@@ -2,7 +2,7 @@
 // Created by  ngs on 13/06/2018.
 //
 #include "featuremanager.h"
-
+#include <tuple>
 Feature::Feature(std::vector<std::string> *ptr_observ_vector, std::vector<std::string> *ptr_tag_vector,
                  std::map<std::string, int> *ptr_x_corpus_map, std::map<int,std::string> *ptr_tag_map_reverse) {
     ptr_feature_map_ = new std::map<std::pair<int, int>, int>;
@@ -11,7 +11,7 @@ Feature::Feature(std::vector<std::string> *ptr_observ_vector, std::vector<std::s
     ptr_w_vector_ = new std::vector<double>(ptr_feature_map_->size());
     std::fill(ptr_w_vector_->begin(),ptr_w_vector_->end(),0);
     //for test only
-/*
+    /*
     double array[12] = {0.65,0.2,0.5,0.25,0.45,0.15,0.35,0.4,0.6,0.3,0.1,0.15};
     for(int i=0; i<ptr_feature_map_->size(); ++i){
         (*ptr_w_vector_)[i] = array[i];
@@ -64,11 +64,11 @@ void Feature::CreateAllFeatureMap(std::vector<std::string> *ptr_observ_vector, s
                                   std::map<std::string, int> *ptr_x_corpus_map,
                                   std::map<int,std::string> *ptr_tag_map_reverse) {
     int index_offset = 0;
-    int size = ptr_tag_vector->size();
     for (int i = 0; i < ptr_tag_map_reverse->size(); ++i) {
         for (int j = 0; j < ptr_tag_map_reverse->size(); ++j) {
             //make pair referring to tag_map;
             std::pair<int, int> tag_pair = std::make_pair(i,j);
+//            InsertFeature(tag_pair,&index_offset);
             ptr_reverse_feature_map_->insert(std::make_pair(index_offset,tag_pair));
             ptr_feature_map_->insert(std::make_pair(tag_pair,index_offset));
             std::cout << "Feature index:"<<index_offset<<", the tag and tag code are: "<<
@@ -119,14 +119,52 @@ void Feature::CreateAllFeatureMap(std::vector<std::string> *ptr_observ_vector, s
 
 }
 
+/*
+void Feature::CreateNewFeatureMap(std::vector<std::string> *ptr_observ_vector, std::vector<std::string> *ptr_tag_vector,
+                                  std::map<std::string, int> *ptr_x_corpus_map,
+                                  std::map<int, std::string> *ptr_tag_map_reverse) {
+    int index_offset = 0;
+    for (int i = 0; i < ptr_observ_vector->size(); ++i) {
+        int ob1 = ptr_x_corpus_map->find((*ptr_observ_vector)[i])->second + FEATURE_CODE_OFFSET;
+        for (int s = 0; s < ptr_tag_map_reverse->size(); ++s) {
+            if (i == ptr_observ_vector->size() - 1) {
+                std::tuple<int, int, int> feature_tuple = std::make_tuple(s, STOP_NODE_FLAG, ob1);
+                InsertFeature(feature_tuple, &index_offset);
+            } else {
+                for (int s1 = 0; s1 < ptr_tag_map_reverse->size(); ++s1) {
+                    std::tuple<int, int, int> feature_tuple = std::make_tuple(s, s1, ob1);
+                    InsertFeature(feature_tuple, &index_offset);
+                }
+            }
+        }
+    }
+    //features of start node to state
+    for (int s = 0; s < ptr_tag_map_reverse->size(); ++s) {
+        std::tuple<int, int, int> feature_tuple = std::make_tuple(s, START_NODE_FLAG, START_NODE_FLAG);
+        InsertFeature(feature_tuple, &index_offset);
+    }
+    feature_size_ = index_offset;
+    std::cout << "feature size is"<<feature_size_ <<std::endl;
+}
+*/
+void Feature::InsertFeature(std::pair<int ,int > feature_pair, int *index) {
+    if (ptr_feature_map_->find(feature_pair) == ptr_feature_map_->end()) {
+        ptr_reverse_feature_map_->insert(std::make_pair((*index),feature_pair));
+        ptr_feature_map_->insert(std::make_pair(feature_pair,(*index)));
+        (*index)++;
+    }
+}
+
 void Feature::CalcCost(Node *ptrnode) {
     double cost = 1;
     int observation = ptrnode->GetX();
     int y = ptrnode->GetY();
-    int index = GetFeatureIndex(std::make_pair((observation+FEATURE_CODE_OFFSET),y));
+    int index = GetFeatureIndex(std::make_pair(observation,y));
     if(FEATURE_NO_EXIST != index){
         double weight = (*ptr_w_vector_)[index];
         cost = exp(weight);
+    } else{
+        std::cout << "index error"<<std::endl;
     }
     ptrnode->SetCost(cost);
 }
@@ -140,6 +178,8 @@ void Feature::CalcCost(Path *ptrpath) {
         //for the pair like (START, y)
         double weight = (*ptr_w_vector_)[index];
         cost = exp(weight);
+    } else{
+        std::cout << "index error"<<std::endl;
     }
     /*
     if (lnodeY == START_NODE_FLAG) {

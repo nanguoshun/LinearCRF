@@ -21,7 +21,6 @@ public:
     void CalcGradient(std::vector<std::string> seq);
     void CalcCost(std::vector<std::string> seq);
     void CalcFeatureExpectation(std::vector<std::string> seq);
-    void CalcEP(std::vector<std::string> seq);
     //void CalcNodeFeatureExpectation(int index, std::pair<int, int> feature);
     //void CalcEdgeFeatureExpectation(int index, std::pair<int, int> feature);
     double CalcEmpiricalFi(std::vector<std::string> seq);
@@ -36,6 +35,7 @@ public:
     void ViterbiBackTracking(std::vector<std::string> seq);
     void ResetParameters();
     void PrintPath(Node *pNode);
+    void SetPathFeature(std::pair<int,int> feature_pair, Path *ppath);
 private:
     DatasetMgr *ptr_datamgr_;
     double loss_value_;
@@ -63,6 +63,7 @@ private:
     bool is_initialized_;
     bool is_converged_;
     std::vector<std::string> *ptr_decoded_tag_;
+    std::vector<double> *ptr_feature_bit_vector_;
 };
 
 #endif //CRF_CRF_LEARNING_H

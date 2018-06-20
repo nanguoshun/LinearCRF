@@ -11,19 +11,24 @@ Path::Path(Node *ptr_lnode, Node *ptr_rnode) {
     expectation_ = 0;
     feature_index_ = FEATURE_NO_EXIST;
     is_calculated_ = false;
+    isSetFeature_ = false;
 }
 
 Path::~Path() {
 
 }
 
-void Path::CalcExpectation(double Z, std::vector<double> *ptr_expectation) {
+void Path::CalcExpectation(double Z, std::vector<double> *ptr_expectation, double *ppath_expectation) {
     double alpha = ptr_lnode_->GetAlpha();
     double beta = ptr_rnode_->GetBeta();
     expectation_  = (alpha * beta * cost_ * ptr_lnode_->GetCost())/Z;
     if(feature_index_!=FEATURE_NO_EXIST){
         (*ptr_expectation)[feature_index_] += expectation_;
+       // std::cout << "The expection of feature " << feature_index_ <<" is: "<<(*ptr_expectation)[feature_index_]<<std::endl;
+    } else{
+        std::cout << "error" <<std::endl;
     }
+    (*ppath_expectation) += expectation_;
 }
 
 void Path::AddNode(Node *ptr_lnode, Node *ptr_rnode) {
@@ -52,6 +57,7 @@ int Path::GetFeatureIndex() {
 
 void Path::SetFeatureIndex(int index) {
     feature_index_ = index;
+    isSetFeature_ = true;
 }
 
 void Path::SetPathID(std::pair<int, int> id) {
@@ -68,4 +74,8 @@ bool Path::isCalculated() {
 
 void Path::SetCalculatedFlag(bool isCalc) {
     is_calculated_ = isCalc;
+}
+
+bool Path::isSetFeature() {
+    return isSetFeature_;
 }

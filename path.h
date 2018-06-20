@@ -22,7 +22,7 @@ public:
     void SetCost(double cost);
 
     //
-    void CalcExpectation(double Z,std::vector<double> *ptr_expectation);
+    void CalcExpectation(double Z,std::vector<double> *ptr_expectation,double *ppath_expectation);
 
     //
     void AddNode(Node *ptr_lnode, Node *ptr_rnode);
@@ -32,6 +32,7 @@ public:
     std::pair<int, int> GetPathID();
     bool isCalculated();
     void SetCalculatedFlag(bool isCalc);
+    bool isSetFeature();
 private:
 
     Node *ptr_lnode_; //left node on an edge
@@ -42,7 +43,8 @@ private:
     double expectation_;
     int feature_index_;
     std::pair<int, int> path_id_;
-    double is_calculated_;
+    bool is_calculated_;
+    bool  isSetFeature_;
 };
 
 #endif //CRF_PATH_H

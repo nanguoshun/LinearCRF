@@ -36,10 +36,16 @@ public:
     void CreateAllFeatureMap(std::vector<std::string> *ptr_observ_vector, std::vector<std::string> *ptr_tag_vector,
                              std::map<std::string, int> *ptr_x_corpus_map,
                              std::map<int, std::string> *ptr_tag_map_reverse);
+/*
+    void CreateNewFeatureMap(std::vector<std::string> *ptr_observ_vector, std::vector<std::string> *ptr_tag_vector,
+                             std::map<std::string, int> *ptr_x_corpus_map,
+                             std::map<int, std::string> *ptr_tag_map_reverse);
+*/
+    void InsertFeature(std::pair<int ,int > feature_pair, int *index);
 
-    std::map<std::pair<int, int>, int> *GetFeatureMap();
+    std::map<std::pair<int,int>, int> *GetFeatureMap();
 
-    std::map<int, std::pair<int, int>> *GetReverseFeatureMap();
+    std::map<int,std::pair<int, int>> *GetReverseFeatureMap();
 
     void SetWeightVector(int index, double weight);
 
@@ -50,8 +56,8 @@ public:
 private:
     //weight vector.
     std::vector<double> *ptr_w_vector_;
-    std::map<std::pair<int, int>, int> *ptr_feature_map_;
-    std::map<int, std::pair<int, int>> *ptr_reverse_feature_map_;
+    std::map<std::pair<int ,int >, int> *ptr_feature_map_;
+    std::map<int, std::pair<int ,int >> *ptr_reverse_feature_map_;
 //    std::vector<double> *ptr_f_e_;
 //    std::vector<double> *ptr_f_empirical_e_;
     int feature_size_;

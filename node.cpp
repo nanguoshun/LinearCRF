@@ -13,7 +13,7 @@ Node::Node(int x, int y) {
     cost_ = 0;
     alpha_ = 0;
     beta_ = 0;
-    expectation_ =0;
+    expectation_ = 0;
     feature_index_ = FEATURE_NO_EXIST;
 }
 
@@ -87,16 +87,17 @@ std::vector<Path *> Node::GetRPath() {
 }
 
 void Node::CalcExpectation(double Z, std::vector<double> *ptr_expectation){
-    double expectation_ = (alpha_ * beta_) / Z;
-    if(feature_index_ != FEATURE_NO_EXIST){
-        (*ptr_expectation)[feature_index_] += expectation_;
-        //std::cout << "feature is: "<<(*ptr_expectation)[feature_index_]<<std::endl;
-    }else{
-        std::cout << "feature not exist"<<std::endl;
-    }
+    double expectation = 0;
     for(std::vector<Path *>::iterator it = rpath_.begin();it!=rpath_.end();++it) {
-        (*it)->CalcExpectation(Z, ptr_expectation);
+        (*it)->CalcExpectation(Z, ptr_expectation, &expectation);
     }
+    if(feature_index_ != FEATURE_NO_EXIST){
+        (*ptr_expectation)[feature_index_] += expectation;
+         //std::cout << "The expection of feature " << feature_index_ <<" is: "<<(*ptr_expectation)[feature_index_]<<std::endl;
+    }else{
+        std::cout << "error"<<std::endl;
+    }
+
 /*
     double value = alpha_  * beta_ * cost_;
     expectation_ = value / Z;
