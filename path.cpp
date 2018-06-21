@@ -21,7 +21,8 @@ Path::~Path() {
 void Path::CalcExpectation(double Z, std::vector<double> *ptr_expectation, double *ppath_expectation) {
     double alpha = ptr_lnode_->GetAlpha();
     double beta = ptr_rnode_->GetBeta();
-    expectation_  = (alpha * beta * cost_ * ptr_lnode_->GetCost())/Z;
+    double cost = cost_ * ptr_lnode_->GetCost();
+    expectation_  = (alpha * beta * cost)/Z;
     if(feature_index_!=FEATURE_NO_EXIST){
         (*ptr_expectation)[feature_index_] += expectation_;
        // std::cout << "The expection of feature " << feature_index_ <<" is: "<<(*ptr_expectation)[feature_index_]<<std::endl;

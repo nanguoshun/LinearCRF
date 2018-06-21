@@ -205,7 +205,7 @@ double CRFLearning::CalcEmpiricalFi(std::vector<std::string> seq) {
         index = ptr_feature_->GetFeatureIndex(std::make_pair(y_i_1,y_i));
         //count the num for each tag sequence
         (*ptr_empirical_e_)[index] += 1;
-        (*ptr_feature_bit_vector_)[index] = 1;
+        (*ptr_feature_bit_vector_)[index] += 1;
 #ifdef DEBUG_MODE
         std::cout << "the value of tag "<<y_i_1 << ", "<<y_i << " is: "<< (*ptr_empirical_e_)[index] <<",index is:"<<index<<std::endl;
 #endif
@@ -218,7 +218,7 @@ double CRFLearning::CalcEmpiricalFi(std::vector<std::string> seq) {
                  index = ptr_feature_->GetFeatureIndex(std::make_pair(x,y));
                 //count the num for each
                 (*ptr_empirical_e_)[index] += 1;
-                (*ptr_feature_bit_vector_)[index] = 1;
+                (*ptr_feature_bit_vector_)[index] += 1;
                 //std::cout << "the observ and tag are "<< seq[i] <<"," << (*ptr_tag_vector_)[i] <<",index is:"<<index<<std::endl;
 #ifdef DEBUG_MODE
                 std::cout << "the value of observ and tag "<<x<< ", "<<y << " is: "<< (*ptr_empirical_e_)[index] <<std::endl;
@@ -318,6 +318,7 @@ void CRFLearning::CalcGradient(std::vector<std::string> seq) {
         double pre_w_k = (*ptr_weight)[k];
         double penalty = 0; //pre_w_k / (L2_FACTOR * L2_FACTOR);
         (*ptr_gradient_)[k] = empirical_e_k - e_k - penalty;
+        std::cout << "the gradient of the "<<k<<"th feature is: "<<(*ptr_gradient_)[k]<<std::endl;
 #ifdef DEBUG_MODE_
         std::cout << "the gradient of the "<<k<<"th feature is: "<<(*ptr_gradient_)[k]<<std::endl;
 #endif
@@ -331,6 +332,13 @@ void CRFLearning::UpdateWeight() {
         double weight = (*ptr_weight)[k] + LEARNING_RATE * (*ptr_gradient_)[k];
         ptr_feature_->SetWeightVector(k,weight);
     }
+    /*
+    double value =0;
+    for(int k=0; k<size; ++k){
+        value += ((*ptr_gradient_)[k] * (*ptr_gradient_)[k]);
+    }
+    value = sqrt(value);
+    std::cout << "the gradient norm is: "<<value<<std::endl;*/
 }
 
 //calc the loss function.
@@ -493,15 +501,12 @@ void CRFLearning::Learning() {
         UpdateWeight();
         //calc loss function
         double loss_value = CalcLoglikelihoodFunction(seq);
-        if(loss_value >=-0.6){
-            std::cout << "stop here"<<std::endl;
-        }
         std::cout << "loglikelihood is:"<<loss_value<<std::endl;
-        if(std::abs(loss_value) - std::abs(loss_value_) < CONVERGED_VALUE){
+        if(std::abs(loss_value) - std::abs(loss_value_) > CONVERGED_VALUE){
             loss_value_ = loss_value;
         } else{
             std::cout << "Training completed"<<std::endl;
-            //is_converged_ = true;
+            is_converged_ = true;
         }
     }
     Viterbi(seq);
