@@ -7,7 +7,7 @@ Feature::Feature(std::vector<std::string> *ptr_observ_vector, std::vector<std::s
                  std::map<std::string, int> *ptr_x_corpus_map, std::map<int,std::string> *ptr_tag_map_reverse) {
     ptr_feature_map_ = new std::map<std::pair<int, int>, int>;
     ptr_reverse_feature_map_ = new std::map<int, std::pair<int, int>>;
-    CreateAllFeatureMap(ptr_observ_vector,ptr_tag_vector,ptr_x_corpus_map,ptr_tag_map_reverse);
+    CreateFeatureMap(ptr_observ_vector, ptr_tag_vector, ptr_x_corpus_map, ptr_tag_map_reverse);
     ptr_w_vector_ = new std::vector<double>(ptr_feature_map_->size());
     std::fill(ptr_w_vector_->begin(),ptr_w_vector_->end(),0);
     //for test only
@@ -25,55 +25,12 @@ Feature::~Feature() {
 }
 
 void Feature::CreateFeatureMap(std::vector<std::string> *ptr_observ_vector, std::vector<std::string> *ptr_tag_vector,
-                               std::map<std::string, int> *ptr_x_corpus_map, std::map<std::string, int> *ptr_tag_map) {
-    int index_offset = 0;
-    //create transition features.
-    for (int i = 0; i < ptr_tag_vector->size()-1; ++i) {
-        int tag1 = ptr_tag_map->find((*ptr_tag_vector)[i])->second;
-        int tag2 = ptr_tag_map->find((*ptr_tag_vector)[i + 1])->second;
-        std::cout << "Feature index:"<<index_offset<<", the string and tag code are: "<<
-                  (*ptr_tag_vector)[i]<<","<<(*ptr_tag_vector)[i+1]<<":"<<tag1<<","<<tag2<<std::endl;
-        std::pair<int,int> tag_pair = std::make_pair(tag1, tag2);
-        //to avoid duplicate
-        if (ptr_feature_map_->find(tag_pair) == ptr_feature_map_->end()) {
-            ptr_reverse_feature_map_->insert(std::make_pair(index_offset, tag_pair));
-            ptr_feature_map_->insert(std::make_pair(tag_pair, index_offset));
-            index_offset++;
-        }
-    }
-    feature_size_edge_ = index_offset;
-    index_offset = 0;
-    //create emission features;
-    for (int i = 0; i < ptr_tag_vector->size(); ++i) {
-        int ob1 = ptr_x_corpus_map->find((*ptr_observ_vector)[i])->second + FEATURE_CODE_OFFSET;
-        int tag1 = ptr_tag_map->find((*ptr_tag_vector)[i])->second;
-        std::pair<int,int> tag_obsv_pair = std::make_pair(ob1,tag1);
-        std::cout << "Feature index:"<<feature_size_edge_ + index_offset<<", the string and tag code are: "<<
-                  (*ptr_observ_vector)[i]<<","<<(*ptr_tag_vector)[i]<<":"<<ob1<<","<<tag1<<std::endl;
-        if (ptr_feature_map_->find(tag_obsv_pair) == ptr_feature_map_->end()) {
-            ptr_reverse_feature_map_->insert(std::make_pair((index_offset + feature_size_edge_), tag_obsv_pair));
-            ptr_feature_map_->insert(std::make_pair(tag_obsv_pair, (index_offset + feature_size_edge_)));
-            index_offset++;
-        }
-    }
-    feature_size_node_= index_offset;
-    feature_size_ = feature_size_edge_ + feature_size_node_;
-}
-
-void Feature::CreateAllFeatureMap(std::vector<std::string> *ptr_observ_vector, std::vector<std::string> *ptr_tag_vector,
-                                  std::map<std::string, int> *ptr_x_corpus_map,
-                                  std::map<int,std::string> *ptr_tag_map_reverse) {
+                               std::map<std::string, int> *ptr_x_corpus_map,
+                               std::map<int, std::string> *ptr_tag_map_reverse) {
     int index_offset = 0;
     for (int i = 0; i < ptr_tag_map_reverse->size(); ++i) {
         for (int j = 0; j < ptr_tag_map_reverse->size(); ++j) {
-            //make pair referring to tag_map;
-            std::pair<int, int> tag_pair = std::make_pair(i,j);
-//            InsertFeature(tag_pair,&index_offset);
-            ptr_reverse_feature_map_->insert(std::make_pair(index_offset,tag_pair));
-            ptr_feature_map_->insert(std::make_pair(tag_pair,index_offset));
-            std::cout << "Feature index:"<<index_offset<<", the tag and tag code are: "<<
-                      ptr_tag_map_reverse->find(i)->second<<","<< ptr_tag_map_reverse->find(j)->second<<":"<<i<<","<<j<<std::endl;
-            index_offset++;
+            InsertFeature(std::make_pair(i,j),&index_offset, 0);
         }
     }
     feature_size_edge_ = index_offset;
@@ -81,76 +38,27 @@ void Feature::CreateAllFeatureMap(std::vector<std::string> *ptr_observ_vector, s
     for (int i = 0; i < ptr_observ_vector->size(); ++i) {
         for (int j = 0; j < ptr_tag_map_reverse->size(); ++j) {
             int ob1 = ptr_x_corpus_map->find((*ptr_observ_vector)[i])->second + FEATURE_CODE_OFFSET;
-            std::pair<int, int> tag_obsv_pair = std::make_pair(ob1,j);
-            if (ptr_feature_map_->find(tag_obsv_pair) == ptr_feature_map_->end()) {
-                ptr_reverse_feature_map_->insert(std::make_pair((index_offset + feature_size_edge_), tag_obsv_pair));
-                ptr_feature_map_->insert(std::make_pair(tag_obsv_pair, (index_offset + feature_size_edge_)));
-                std::cout << "Feature index:"<<feature_size_edge_ + index_offset<<", the string and tag code are: "<<
-                          (*ptr_observ_vector)[i]<<","<<ptr_tag_map_reverse->find(j)->second<<":"<<ob1<<","<<j<<std::endl;
-                index_offset++;
-            }
+            InsertFeature(std::make_pair(ob1,j),&index_offset,feature_size_edge_);
         }
     }
     feature_size_node_= index_offset;
     index_offset = 0;
     //for start_node
     for (int k = 0; k < ptr_tag_map_reverse->size() ; ++k) {
-        int tag1 = START_NODE_FLAG;
-        std::pair<int, int> tag_pair = std::make_pair(tag1,k);
-        ptr_reverse_feature_map_->insert(std::make_pair(index_offset+feature_size_edge_+feature_size_node_,tag_pair));
-        ptr_feature_map_->insert(std::make_pair(tag_pair,index_offset+feature_size_edge_+feature_size_node_));
-        std::cout << "Feature index:"<<feature_size_edge_ + index_offset + feature_size_node_<<", the string and tag code are: "<<
-                  "Start Node"<<","<<ptr_tag_map_reverse->find(k)->second<<":"<<tag1<<","<<k<<std::endl;
-        index_offset++;
+        InsertFeature(std::make_pair(START_NODE_FLAG,k),&index_offset,feature_size_edge_+feature_size_node_);
     }
     //for stop_node
     for (int k = 0; k < ptr_tag_map_reverse->size() ; ++k) {
-        int tag2 = STOP_NODE_FLAG;
-        std::pair<int, int> tag_pair = std::make_pair(k,tag2);
-        ptr_reverse_feature_map_->insert(std::make_pair(index_offset+feature_size_edge_+feature_size_node_,tag_pair));
-        ptr_feature_map_->insert(std::make_pair(tag_pair,index_offset+feature_size_edge_+feature_size_node_));
-        std::cout << "Feature index:"<<feature_size_edge_ + index_offset+feature_size_node_<<", the string and tag code are: "<<
-                  ptr_tag_map_reverse->find(k)->second<<","<<"Stop Node"<<":"<<k<<","<<tag2<<std::endl;
-
-        index_offset++;
+        InsertFeature(std::make_pair(k,STOP_NODE_FLAG),&index_offset,feature_size_edge_+feature_size_node_);
     }
     feature_size_start_stop_ = index_offset;
     feature_size_ = feature_size_edge_ + feature_size_node_ + feature_size_start_stop_;
-
 }
 
-/*
-void Feature::CreateNewFeatureMap(std::vector<std::string> *ptr_observ_vector, std::vector<std::string> *ptr_tag_vector,
-                                  std::map<std::string, int> *ptr_x_corpus_map,
-                                  std::map<int, std::string> *ptr_tag_map_reverse) {
-    int index_offset = 0;
-    for (int i = 0; i < ptr_observ_vector->size(); ++i) {
-        int ob1 = ptr_x_corpus_map->find((*ptr_observ_vector)[i])->second + FEATURE_CODE_OFFSET;
-        for (int s = 0; s < ptr_tag_map_reverse->size(); ++s) {
-            if (i == ptr_observ_vector->size() - 1) {
-                std::tuple<int, int, int> feature_tuple = std::make_tuple(s, STOP_NODE_FLAG, ob1);
-                InsertFeature(feature_tuple, &index_offset);
-            } else {
-                for (int s1 = 0; s1 < ptr_tag_map_reverse->size(); ++s1) {
-                    std::tuple<int, int, int> feature_tuple = std::make_tuple(s, s1, ob1);
-                    InsertFeature(feature_tuple, &index_offset);
-                }
-            }
-        }
-    }
-    //features of start node to state
-    for (int s = 0; s < ptr_tag_map_reverse->size(); ++s) {
-        std::tuple<int, int, int> feature_tuple = std::make_tuple(s, START_NODE_FLAG, START_NODE_FLAG);
-        InsertFeature(feature_tuple, &index_offset);
-    }
-    feature_size_ = index_offset;
-    std::cout << "feature size is"<<feature_size_ <<std::endl;
-}
-*/
-void Feature::InsertFeature(std::pair<int ,int > feature_pair, int *index) {
+void Feature::InsertFeature(std::pair<int ,int > feature_pair, int *index, int offset) {
     if (ptr_feature_map_->find(feature_pair) == ptr_feature_map_->end()) {
-        ptr_reverse_feature_map_->insert(std::make_pair((*index),feature_pair));
-        ptr_feature_map_->insert(std::make_pair(feature_pair,(*index)));
+        ptr_reverse_feature_map_->insert(std::make_pair((*index)+offset,feature_pair));
+        ptr_feature_map_->insert(std::make_pair(feature_pair,(*index)+offset));
         (*index)++;
     }
 }
@@ -181,13 +89,6 @@ void Feature::CalcCost(Path *ptrpath) {
     } else{
         std::cout << "index error"<<std::endl;
     }
-    /*
-    if (lnodeY == START_NODE_FLAG) {
-        cost = exp(0);
-    }
-    if (rnodeY == STOP_NODE_FLAG){
-        cost = exp(0);
-    }*/
     ptrpath->SetCost(cost);
 }
 

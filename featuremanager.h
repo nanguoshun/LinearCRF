@@ -31,17 +31,9 @@ public:
     int GetFeatureSize();
 
     void CreateFeatureMap(std::vector<std::string> *ptr_observ_vector, std::vector<std::string> *ptr_tag_vector,
-                          std::map<std::string, int> *ptr_x_corpus_map, std::map<std::string, int> *ptr_tag_map);
-
-    void CreateAllFeatureMap(std::vector<std::string> *ptr_observ_vector, std::vector<std::string> *ptr_tag_vector,
-                             std::map<std::string, int> *ptr_x_corpus_map,
-                             std::map<int, std::string> *ptr_tag_map_reverse);
-/*
-    void CreateNewFeatureMap(std::vector<std::string> *ptr_observ_vector, std::vector<std::string> *ptr_tag_vector,
-                             std::map<std::string, int> *ptr_x_corpus_map,
-                             std::map<int, std::string> *ptr_tag_map_reverse);
-*/
-    void InsertFeature(std::pair<int ,int > feature_pair, int *index);
+                          std::map<std::string, int> *ptr_x_corpus_map,
+                          std::map<int, std::string> *ptr_tag_map_reverse);
+    void InsertFeature(std::pair<int ,int > feature_pair, int *index, int offset);
 
     std::map<std::pair<int,int>, int> *GetFeatureMap();
 

@@ -14,6 +14,8 @@
 class CRFLearning{
 public:
     explicit CRFLearning(DatasetMgr *ptr_datamgr);
+    void AllocateSpace();
+    void CreateTagObservMap();
     ~CRFLearning();
     void Init(std::vector<std::string> seq);
     double CalcLoglikelihoodFunction(std::vector<std::string> seq);
@@ -21,8 +23,6 @@ public:
     void CalcGradient(std::vector<std::string> seq);
     void CalcCost(std::vector<std::string> seq);
     void CalcFeatureExpectation(std::vector<std::string> seq);
-    //void CalcNodeFeatureExpectation(int index, std::pair<int, int> feature);
-    //void CalcEdgeFeatureExpectation(int index, std::pair<int, int> feature);
     double CalcEmpiricalFi(std::vector<std::string> seq);
     void ForwardBackward(std::vector<std::string> seq);
     void BuildLattice(std::vector<std::string> seq);
@@ -32,13 +32,13 @@ public:
     void DeleteLattice(std::vector<std::string> seq);
     void UpdateWeight();
     void Viterbi(std::vector<std::string> seq);
+    void SelectBestNode(Node *pNode);
     void ViterbiBackTracking(std::vector<std::string> seq);
     void ResetParameters();
     void PrintPath(Node *pNode);
     void SetPathFeature(std::pair<int,int> feature_pair, Path *ppath);
 private:
     DatasetMgr *ptr_datamgr_;
-    double loss_value_;
     std::vector<std::vector<Node *>> node_matrix_;
     Node *ptr_start_node_;
     Node *ptr_stop_node_;

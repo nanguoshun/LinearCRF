@@ -7,13 +7,9 @@
 #include <cmath>
 
 CRFLearning::CRFLearning(DatasetMgr *ptr_datamgr) {
+    AllocateSpace();
     ptr_datamgr_ = ptr_datamgr;
     loss_value_ = -1000;
-    ptr_x_corpus_ = new std::vector<std::string>;
-    ptr_x_corpus_map_ = new std::map<std::string, int>;
-    ptr_x_corpus_map_reverse_ = new std::map<int, std::string>;
-    ptr_tag_map_ = new std::map<std::string, int>;
-    ptr_tag_map_reverse_ = new std::map<int, std::string>;
     ptr_x_set_ = ptr_datamgr_->GetTrainingXSet();
     ptr_tag_vector_ = ptr_datamgr_->GetTageVector();
     ptr_x_vector_  = ptr_datamgr_->GetTrainingXVector();
@@ -22,8 +18,32 @@ CRFLearning::CRFLearning(DatasetMgr *ptr_datamgr) {
     is_converged_  = false;
 }
 
+void CRFLearning::AllocateSpace() {
+    ptr_x_corpus_ = new std::vector<std::string>;
+    ptr_x_corpus_map_ = new std::map<std::string, int>;
+    ptr_x_corpus_map_reverse_ = new std::map<int, std::string>;
+    ptr_tag_map_ = new std::map<std::string, int>;
+    ptr_tag_map_reverse_ = new std::map<int, std::string>;
+}
+
 void CRFLearning::Init(std::vector<std::string> seq) {
     //to simplify the learning, we use the training x set as corpus.
+    CreateTagObservMap();
+    ptr_feature_ = new Feature(ptr_x_vector_,ptr_tag_vector_,ptr_x_corpus_map_,ptr_tag_map_reverse_);
+    tag_num_ = ptr_tag_set_->size();
+    ptr_feature_vector_ = new std::vector<std::pair<int, int>>;
+    ptr_empirical_e_ = new std::vector<double>(ptr_feature_->GetFeatureSize());
+    std::fill(ptr_empirical_e_->begin(),ptr_empirical_e_->end(),0);
+    ptr_feature_bit_vector_ = new std::vector<double>(ptr_feature_->GetFeatureSize());
+    std::fill(ptr_feature_bit_vector_->begin(),ptr_feature_bit_vector_->end(),0);
+    ptr_e_ = new std::vector<double>(ptr_feature_->GetFeatureSize());
+    std::fill(ptr_e_->begin(),ptr_e_->end(),0);
+    ptr_gradient_ = new std::vector<double>(ptr_feature_->GetFeatureSize());
+    std::fill(ptr_gradient_->begin(),ptr_gradient_->end(),0);
+    ptr_decoded_tag_ = new std::vector<std::string>(seq.size());
+}
+
+void CRFLearning::CreateTagObservMap() {
     int index = 0;
     for (std::set<std::string>::iterator it = ptr_x_set_->begin(); it != ptr_x_set_->end(); ++it) {
         std::cout << (*it) << std::endl;
@@ -38,24 +58,6 @@ void CRFLearning::Init(std::vector<std::string> seq) {
         ptr_tag_map_reverse_->insert(std::make_pair(index,(*it)));
         index++;
     }
-    ptr_feature_ = new Feature(ptr_x_vector_,ptr_tag_vector_,ptr_x_corpus_map_,ptr_tag_map_reverse_);
-    tag_num_ = ptr_tag_set_->size();
-    ptr_feature_vector_ = new std::vector<std::pair<int, int>>;
-    ptr_empirical_e_ = new std::vector<double>(ptr_feature_->GetFeatureSize());
-    std::fill(ptr_empirical_e_->begin(),ptr_empirical_e_->end(),0);
-
-    ptr_feature_bit_vector_ = new std::vector<double>(ptr_feature_->GetFeatureSize());
-    std::fill(ptr_feature_bit_vector_->begin(),ptr_feature_bit_vector_->end(),0);
-
-
-    ptr_e_ = new std::vector<double>(ptr_feature_->GetFeatureSize());
-    std::fill(ptr_e_->begin(),ptr_e_->end(),0);
-    ptr_gradient_ = new std::vector<double>(ptr_feature_->GetFeatureSize());
-    std::fill(ptr_gradient_->begin(),ptr_gradient_->end(),0);
-    ptr_decoded_tag_ = new std::vector<std::string>(seq.size());
-
-    CalcEmpiricalFi(seq);
-
 }
 
 CRFLearning::~CRFLearning() {
@@ -246,23 +248,8 @@ void CRFLearning::CalcFeatureExpectation(std::vector<std::string> seq) {
 #ifdef DEBUG_MODE
             std::cout << "expectation of the node"<<i<< ", "<<j<< " is: "<< node_matrix_[i][j]->GetExpectation() <<std::endl;
 #endif
-            //std::vector<Path *> lpath = node_matrix_[i][j]->GetLPath();
-            //for (std::vector<Path *>::iterator it = lpath.begin();  it!=lpath.end() ; ++it) {
-             //   }
         }
     }
-    //summation
-    /*
-    int feature_size = ptr_feature_->GetFeatureSize();
-    for(int index = 0; index<feature_size; index++){
-        std::pair<int,int > feature = ptr_feature_->GetReverseFeatureMap()->find(index)->second;
-        if(index<ptr_feature_->GetFeatureSizeEdge()){
-            CalcEdgeFeatureExpectation(index, feature);
-        } else{
-            CalcNodeFeatureExpectation(index, feature);
-        }
-    }
-    */
 #ifdef DEBUG_MODE
     for(int i=0; i<ptr_feature_->GetFeatureSize(); ++i){
         std::cout << "feature expectation of the" <<i<<"th feature is"<<(*ptr_e_)[i]<<std::endl;
@@ -318,7 +305,7 @@ void CRFLearning::CalcGradient(std::vector<std::string> seq) {
         double pre_w_k = (*ptr_weight)[k];
         double penalty = 0; //pre_w_k / (L2_FACTOR * L2_FACTOR);
         (*ptr_gradient_)[k] = empirical_e_k - e_k - penalty;
-        std::cout << "the gradient of the "<<k<<"th feature is: "<<(*ptr_gradient_)[k]<<std::endl;
+        //std::cout << "the gradient of the "<<k<<"th feature is: "<<(*ptr_gradient_)[k]<<std::endl;
 #ifdef DEBUG_MODE_
         std::cout << "the gradient of the "<<k<<"th feature is: "<<(*ptr_gradient_)[k]<<std::endl;
 #endif
@@ -332,16 +319,9 @@ void CRFLearning::UpdateWeight() {
         double weight = (*ptr_weight)[k] + LEARNING_RATE * (*ptr_gradient_)[k];
         ptr_feature_->SetWeightVector(k,weight);
     }
-    /*
-    double value =0;
-    for(int k=0; k<size; ++k){
-        value += ((*ptr_gradient_)[k] * (*ptr_gradient_)[k]);
-    }
-    value = sqrt(value);
-    std::cout << "the gradient norm is: "<<value<<std::endl;*/
 }
 
-//calc the loss function.
+//calc the loglikelihood function.
 double CRFLearning::CalcLoglikelihoodFunction(std::vector<std::string> seq) {
     int feature_size = ptr_feature_->GetFeatureSize();
     std::vector<double > *ptr_weight = ptr_feature_->GetWeightVector();
@@ -387,23 +367,20 @@ void CRFLearning::ForwardBackward(std::vector<std::string> seq) {
         Node *p_node = stop_lpath[j]->GetLNode();
         Z_ = p_node->SumExp(Z_,stop_lpath[j]->GetCost()*p_node->GetCost(),p_node->GetAlpha(),(j==0));
     }
-    //std::cout << "Z_ derived by alpha is"<<Z_<<std::endl;
-
 #ifdef DEBUG_MODE_
     std::cout << "Z_ derived by alpha is"<<Z_<<std::endl;
 #endif
+#ifdef DEBUG_MODE_
     std::vector<Path *> start_rpath= ptr_start_node_->GetRPath();
     double beata_Z = 0;
     for (int j = 0; j < tag_num_; ++j) {
         Node *p_node = start_rpath[j]->GetRNode();
         beata_Z = p_node->SumExp(beata_Z, ptr_start_node_->GetCost() * start_rpath[j]->GetCost(),p_node->GetBeta(),(j==0));
     }
-    //std::cout<<"Z by beta is: "<< beata_Z <<std::endl;
-
+#endif
 #ifdef DEBUG_MODE_
     std::cout << "Z_ derived by beta is"<<beata_Z<<std::endl;
     std::cout << "==========="<<std::endl;
-#endif
     for(int i=0; i<seq.size(); ++i){
         double value = 0;
         for(int k=0; k<tag_num_; k++){
@@ -412,40 +389,39 @@ void CRFLearning::ForwardBackward(std::vector<std::string> seq) {
         //std::cout << i<<"th Z is: "<< value <<std::endl;
         Z_ = value;
     }
+#endif
 
 }
 
 void CRFLearning::Viterbi(std::vector<std::string> seq) {
+    ptr_start_node_->SetBestCost(1);
     for(int i=0; i<seq.size(); ++i){
         for(int j=0; j<tag_num_; ++j){
-            double best_cost = 1e10;
-            Node *p_best_node;
-            std::vector<Path *> ppath = node_matrix_[i][j]->GetLPath();
-            for(std::vector<Path *>::iterator it = ppath.begin(); it!=ppath.end(); ++it){
-                Node *pnode = (*it)->GetLNode();
-                double cost = pnode->GetBestCost() * ((*it)->GetCost() + node_matrix_[i][j]->GetCost());
-                if(cost > best_cost){
-                    best_cost = cost;
-                    p_best_node = pnode;
-                }
-            }
-            node_matrix_[i][j]->SetBestCost(best_cost);
-            node_matrix_[i][j]->SetPreNode(p_best_node);
+            SelectBestNode(node_matrix_[i][j]);
         }
     }
     //for the last node;
-    double best_cost = 1e10;
-    Node *p_best_node;
-    for(int j=0; j<tag_num_; ++j){
-       double cost = node_matrix_[seq.size()-1][j]->GetBestCost();
-       if(cost > best_cost){
-            best_cost = cost;
-            p_best_node = node_matrix_[seq.size()-1][j];
-       }
+    std::vector<Path *> ppath = ptr_stop_node_->GetLPath();
+    for(std::vector<Path *>::iterator it = ppath.begin(); it!=ppath.end(); ++it){
+        SelectBestNode(ptr_stop_node_);
     }
-    ptr_stop_node_->SetPreNode(p_best_node);
     //backtracking
     ViterbiBackTracking(seq);
+}
+
+void CRFLearning::SelectBestNode(Node *pNode) {
+    double best_cost = 1e10;
+    Node *p_best_node;
+    std::vector<Path *> ppath = pNode->GetLPath();
+    for(std::vector<Path *>::iterator it = ppath.begin(); it!=ppath.end(); ++it){
+        double cost =  (*it)->GetLNode()->GetBestCost() * ((*it)->GetCost() *  (*it)->GetLNode()->GetCost());
+        if(cost > best_cost){
+            best_cost = cost;
+            p_best_node = (*it)->GetLNode();
+        }
+    }
+    pNode->SetBestCost(best_cost);
+    pNode->SetPreNode(p_best_node);
 }
 
 void CRFLearning::ViterbiBackTracking(std::vector<std::string> seq) {
@@ -489,6 +465,7 @@ void CRFLearning::Learning() {
         Init(seq);
         is_initialized_ = true;
     }
+    CalcEmpiricalFi(seq);
     BuildLattice(seq);
     //for test only;
 #ifdef DEBUG_MODE
@@ -499,12 +476,10 @@ void CRFLearning::Learning() {
         ResetParameters();
         CalcGradient(seq);
         UpdateWeight();
-        //calc loss function
+        //calc loglikelihood function
         double loss_value = CalcLoglikelihoodFunction(seq);
         std::cout << "loglikelihood is:"<<loss_value<<std::endl;
-        if(std::abs(loss_value) - std::abs(loss_value_) > CONVERGED_VALUE){
-            loss_value_ = loss_value;
-        } else{
+        if(loss_value > CONVERGED_VALUE){
             std::cout << "Training completed"<<std::endl;
             is_converged_ = true;
         }

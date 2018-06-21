@@ -31,18 +31,14 @@ Node::~Node() {
 void Node::CalcAlpha() {
     alpha_ = 0;
     for(std::vector<Path *>::iterator it = lpath_.begin(); it!=lpath_.end();++it){
-//        alpha_ = SumExp(alpha_, (*it)->GetCost() * cost_, (*it)->GetLNode()->GetAlpha(), (it == lpath_.begin()));
         alpha_ = SumExp(alpha_, (*it)->GetCost() * (*it)->GetLNode()->GetCost(), (*it)->GetLNode()->GetAlpha(), (it == lpath_.begin()));
-
     }
 }
 // calc beta recursively
 void Node::CalcBeta() {
     beta_ = 0;
     for(std::vector<Path *>::iterator it = rpath_.begin(); it!=rpath_.end();++it){
-//        beta_ = SumExp(beta_, (*it)->GetCost() * cost_, (*it)->GetRNode()->GetBeta(), (it == rpath_.begin()));
         beta_ = SumExp(beta_, (*it)->GetCost() * (*it)->GetLNode()->GetCost(), (*it)->GetRNode()->GetBeta(), (it == rpath_.begin()));
-
     }
 }
 
@@ -97,18 +93,6 @@ void Node::CalcExpectation(double Z, std::vector<double> *ptr_expectation){
     }else{
         std::cout << "error"<<std::endl;
     }
-
-/*
-    double value = alpha_  * beta_ * cost_;
-    expectation_ = value / Z;
-    if(feature_index_ != FEATURE_NO_EXIST){
-        (*ptr_expectation)[feature_index_] += expectation_;
-        //std::cout << "feature is: "<<(*ptr_expectation)[feature_index_]<<std::endl;
-    }
-    for(std::vector<Path *>::iterator it = lpath_.begin();it!=lpath_.end();++it){
-        (*it)->CalcExpectation(Z, ptr_expectation);
-    }
-*/
 }
 
 double Node::GetExpectation() {
