@@ -18,9 +18,7 @@ DatasetMgr::DatasetMgr(bool is_sentence_level){
     ptr_state_to_x_prob_map_ = new std::map<std::string, double >();
     ptr_test_x_vector_  = new std::vector<std::string>();
     ptr_test_tag_vector_ = new std::vector<std::string>();
-
     ptr_x_vector_ = new std::vector<std::string>();
-
     ptr_x_set_ = new std::set<std::string>();
     num_of_training_setence_ = 0;
 }
@@ -48,7 +46,8 @@ DatasetMgr::~DatasetMgr() {
  * @param file_name
  * @return
  */
-bool DatasetMgr:: OpenDataSet(const char *file_name, bool istraining) {
+bool DatasetMgr:: OpenDataSet(const char *training_file_name, const char *test_file_name, bool is_training) {
+    const char *file_name = (is_training) ? training_file_name:test_file_name;
     std::ifstream ifs(file_name);
     std::vector<std::string> line_vector;
     size_t i = 0;
@@ -68,11 +67,12 @@ bool DatasetMgr:: OpenDataSet(const char *file_name, bool istraining) {
         }
         i++;
         line_vector.clear();
-        if(true == Tokenized(ptr_line_,"\t ",&line_vector,TAG_MAX_SIZE,istraining)){
-            if(true == istraining){
+        if(true == Tokenized(ptr_line_,"\t ",&line_vector,TAG_MAX_SIZE,is_training)){
+            if(true == is_training){
                 OpenTrainSet(&line_vector,is_sentence_level_);
             }else{
-                OpenTestSet(&line_vector);
+                OpenTrainSet(&line_vector,is_sentence_level_);
+//              OpenTestSet(&line_vector);
             }
         }
     }
@@ -80,6 +80,18 @@ bool DatasetMgr:: OpenDataSet(const char *file_name, bool istraining) {
             //std::cout << "the tag in test set is: "<<*it<<std::endl;
     }
     return true;
+}
+
+
+void DatasetMgr::OpenFeatureMapFile(std::map<std::pair<int, int>, int> *ptr_feture_map,
+                                    std::map<int, std::pair<int, int >> *ptr_reverse_feature_map,
+                                    const char *file_name) {
+    std::ifstream ifs(file_name);
+    //std::vector<std::string> line_vector;
+    std::string line_vector;
+    while (getline(ifs, line_vector)) {
+        std::cout << line_vector << std::endl;
+    }
 }
 
 void DatasetMgr::OpenTrainSet(std::vector<std::string> *ptr_vector, bool is_sentence_level) {

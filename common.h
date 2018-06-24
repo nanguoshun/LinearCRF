@@ -9,12 +9,13 @@
 #include <vector>
 
 const int LINE_MAX_SIZE = 8192;
+const int LINE_FEATURE_MAX_SIZE = 18192;
 const int TAG_MAX_SIZE = 1024;
 const int DIGITAL_FLAG = 123456789;
 const double SMOOTH_VALUE = 0.0001;
 const std::string SPACE_OF_LINE = "\t";
 const std::string OUT_FLAG = "OUT";
-const std::string SPERATOR_FLAG = "%";
+const std::string SPERATOR_FLAG = "+";
 const std::string TAGER_BIO_B = "B";
 const std::string TAGER_BIO_I = "I";
 const std::string TAGER_BIO_O = "O";
@@ -26,13 +27,13 @@ const double INITIAL_LOG_LIKEIHOOD = 10000;
 const double ALPHA_START = 0.01;
 const int RAND_MAX_NUM = 100;
 
-const double LEARNING_RATE = 0.05;
+const double LEARNING_RATE = 0.2;
 const double L2_FACTOR = 1;
-const double CONVERGED_VALUE = -0.01;
-const int FEATURE_CODE_OFFSET = 500;
+const double CONVERGED_VALUE = -0.2;
+const int FEATURE_CODE_OFFSET = 500000;
 const int FEATURE_NO_EXIST = -100;
-const int START_NODE_FLAG = -1;
-const int STOP_NODE_FLAG = -2;
+const int START_NODE_FLAG = -100000;
+const int STOP_NODE_FLAG = -200000;
 
 #define TEST_MODE = 100;
 

@@ -19,7 +19,7 @@ class DatasetMgr{
     public:
     explicit DatasetMgr(bool isSentenceLevel);
     ~DatasetMgr();
-    bool OpenDataSet(const char *file_name, bool is_training);
+    bool OpenDataSet(const char *training_file_name, const char *test_file_name, bool is_training);
     void OpenTrainSet(std::vector<std::string> *ptr_vector, bool is_sentence_level);
     void OpenTestSet(std::vector<std::string> *ptr_vector);
     bool Tokenized(char* ptr_line, const char* ptr_space, std::vector<std::string> *ptr_string_line, size_t tag_maxsize, bool istraining);
@@ -37,7 +37,7 @@ class DatasetMgr{
     std::set<std::string> *GetTrainingXSet() const;
     size_t GetNumOfTrainingSeqs() const;
     std::vector<std::string> *GetTageVector() const;
-
+    void OpenFeatureMapFile(std::map<std::pair<int ,int >, int> *ptr_feture_map, std::map<int, std::pair<int ,int >> *ptr_reverse_feature_map, const char *file_name);
 
 private:
     char *ptr_line_;

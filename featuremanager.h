@@ -13,8 +13,10 @@
 
 class Feature {
 public:
-    explicit Feature(std::vector<std::string> *observ_vector, std::vector<std::string> *tag_vector,
-                     std::map<std::string, int> *ptr_x_corpus_map, std::map<int,std::string> *ptr_tag_map_reverse);
+    explicit Feature(std::vector<std::string> *ptr_observ_vector, std::vector<std::string> *tag_vector,
+                     std::map<std::string, int> *ptr_x_corpus_map, std::map<int,std::string> *ptr_tag_map_reverse, int num_of_seq);
+
+    Feature(const char *feature_file_name);
 
     ~Feature();
 
@@ -32,8 +34,9 @@ public:
 
     void CreateFeatureMap(std::vector<std::string> *ptr_observ_vector, std::vector<std::string> *ptr_tag_vector,
                           std::map<std::string, int> *ptr_x_corpus_map,
-                          std::map<int, std::string> *ptr_tag_map_reverse);
-    void InsertFeature(std::pair<int ,int > feature_pair, int *index, int offset);
+                          std::map<int, std::string> *ptr_tag_map_reverse, int num_of_seq);
+    void CreateFeatureMap(const char *feature_file_name);
+    void InsertFeature(std::pair<int ,int > feature_pair, int *index, int offset,  std::ofstream* ptr_of, bool istest);
 
     std::map<std::pair<int,int>, int> *GetFeatureMap();
 

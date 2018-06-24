@@ -1,0 +1,83 @@
+//
+// Created by  ngs on 09/06/2018.
+//
+#ifndef CRF_CRF_LEARNING_H
+#define CRF_CRF_LEARNING_H
+#include <iostream>
+#include <vector>
+#include "common.h"
+#include "node.h"
+#include "featuremanager.h"
+#include "datasetmgr.h"
+#include <math.h>
+
+class LinearCRF{
+public:
+    explicit LinearCRF(DatasetMgr *ptr_datamgr_training);
+    void AllocateSpace();
+    void CreateTagObservMap();
+    ~LinearCRF();
+    void Init();
+    double CalcLoglikelihoodFunction();
+    void Training();
+    void Decoding();
+    void CRFRun();
+    void MainCalculation();
+    void CalcGradient();
+    void CalcCost(std::vector<std::string> seq, int seq_no);
+    void CalcFeatureExpectation(std::vector<std::string> seq, int seq_no);
+    double CalcEmpiricalFi(std::vector<std::string> x_seq, std::vector<std::string> tag_seq, int seq_no);
+    void CalcAllEmpiricalFi();
+    void ForwardBackward(std::vector<std::string> seq, int seq_no);
+    void BuildLattice();
+    void BuildNode(std::vector<std::string> seq, int seq_no);
+    void BuildLPath(std::vector<std::string> seq, int seq_no);
+    void BuildRPath(std::vector<std::string> seq, int seq_no);
+    void DeleteLattice();
+    void UpdateWeight();
+    void Viterbi(std::vector<std::string> seq, int seq_no);
+    void SelectBestNode(Node *pNode);
+    void ViterbiBackTracking(std::vector<std::string> seq, int seq_no);
+    void WriteDecodingTagtoFile();
+    void ResetParameters();
+    void PrintPath(Node *pNode);
+    void SetPathFeature(std::pair<int,int> feature_pair, Path *ppath);
+    void GenerateSeqFromVector(std::vector<std::string> *ptr_vector,std::vector<std::vector<std::string>> *ptr_seq_vector);
+    void SaveModelToFile();
+private:
+    DatasetMgr *ptr_datamgr_;
+    //DatasetMgr *ptr_datamgr_test_;
+    std::vector<std::vector<std::vector<Node *>>> node_matrix_;
+    std::vector<Node> *ptr_start_node_;
+    std::vector<Node> *ptr_stop_node_;
+    int tag_num_;
+    std::vector<double> *ptr_Z_;
+    std::vector<double> *ptr_gradient_;
+    //data related
+    std::vector<std::vector<std::string>> *ptr_seq_matrix_;
+    std::vector<std::vector<std::string>> *ptr_tag_seq_;
+    int num_of_instance_;
+    std::vector<std::string> *ptr_x_train_vector_;
+    //std::vector<std::string> *ptr_x_test_vector_;
+    std::set<std::string> *ptr_x_traing_set_;
+    //std::set<std::string> *ptr_x_test_set_;
+    std::vector<std::string> *ptr_tag_vector_;
+    std::set<std::string> *ptr_tag_set_;
+    //std::set<std::string> *ptr_test_tag_set_;
+    std::map<std::string, int> *ptr_tag_map_;
+    std::map<int, std::string> *ptr_tag_map_reverse_;
+    std::map<std::string, int> *ptr_x_corpus_map_;
+    std::map<int, std::string> *ptr_x_corpus_map_reverse_;
+    //std::vector<std::string> *ptr_x_corpus_;
+    //feature related
+    Feature *ptr_feature_;
+    std::vector<std::pair<int, int>> *ptr_feature_vector_;
+    std::vector<double> *ptr_empirical_e_;
+    std::vector<double> *ptr_e_;
+    bool is_converged_;
+    std::vector<std::vector<std::string>> *ptr_decoded_tag_;
+    std::vector<double> *ptr_feature_bit_vector_;
+    bool is_training_;
+};
+
+#endif //CRF_CRF_LEARNING_H
