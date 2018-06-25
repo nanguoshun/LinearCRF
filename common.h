@@ -8,7 +8,7 @@
 #include <iostream>
 #include <vector>
 
-const int LINE_MAX_SIZE = 8192;
+const int LINE_MAX_SIZE = 18192;
 const int LINE_FEATURE_MAX_SIZE = 18192;
 const int TAG_MAX_SIZE = 1024;
 const int DIGITAL_FLAG = 123456789;
@@ -26,10 +26,12 @@ const double EM_ITERATION_STOP = 0.1;
 const double INITIAL_LOG_LIKEIHOOD = 10000;
 const double ALPHA_START = 0.01;
 const int RAND_MAX_NUM = 100;
+const double DEFAULT_COST_VALUE = 1;
+
 
 const double LEARNING_RATE = 0.2;
 const double L2_FACTOR = 1;
-const double CONVERGED_VALUE = -0.2;
+const double CONVERGED_VALUE = -0.97;
 const int FEATURE_CODE_OFFSET = 500000;
 const int FEATURE_NO_EXIST = -100;
 const int START_NODE_FLAG = -100000;
@@ -42,6 +44,7 @@ const int STOP_NODE_ID =  200000;
 
 //#define DEBUG_MODE = 200;
 //#define DEBUG_MODE_ = 200;
+#define DEBUG_MODE__
 
 struct HMMParameters{
     size_t  num_of_state_;

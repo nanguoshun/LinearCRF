@@ -29,6 +29,7 @@ public:
      */
     inline double SumExp(double iteration_alpha, double cost, double lalpha, bool isStart){
         // calc \alpha * cost;
+  //      double value = cost * lalpha;
         double value = cost * lalpha;
         if(isStart){
             return value; // init mode

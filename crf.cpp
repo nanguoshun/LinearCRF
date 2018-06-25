@@ -72,20 +72,8 @@ void LinearCRF::CreateTagObservMap() {
         ptr_x_corpus_map_reverse_->insert(std::make_pair(index,(*it)));
         ofs_x_map << std::to_string(index) + " " + (*it);
         ofs_x_map << std::endl;
-        //ptr_x_corpus_->push_back((*it));
         index++;
     }
-    /*
-    if(!is_training_){
-        for (std::set<std::string>::iterator it = ptr_x_test_set_->begin(); it != ptr_x_test_set_->end(); ++it){
-            if(ptr_x_corpus_map_->find((*it)) == ptr_x_corpus_map_->end()){
-                ptr_x_corpus_map_->insert(std::make_pair((*it), index));
-                ptr_x_corpus_map_reverse_->insert(std::make_pair(index,(*it)));
-                //ptr_x_corpus_->push_back((*it));
-                index++;
-            }
-        }
-    }*/
     index = 0;
     for(std::set<std::string>::iterator it = ptr_tag_set_->begin(); it!= ptr_tag_set_->end(); ++it){
         ptr_tag_map_->insert(std::make_pair((*it),index));
@@ -94,16 +82,6 @@ void LinearCRF::CreateTagObservMap() {
         ofs_tag_map << std::endl;
         index++;
     }
-    /*
-    if(!is_training_){
-        for (std::set<std::string>::iterator it = ptr_test_tag_set_->begin(); it != ptr_test_tag_set_->end(); ++it){
-            if(ptr_tag_map_->find((*it)) == ptr_tag_map_->end()){
-                ptr_tag_map_->insert(std::make_pair((*it),index));
-                ptr_tag_map_reverse_->insert(std::make_pair(index,(*it)));
-                index++;
-            }
-        }
-    }*/
 }
 
 LinearCRF::~LinearCRF() {
@@ -349,8 +327,8 @@ void LinearCRF::CalcFeatureExpectation(std::vector<std::string> seq, int seq_no)
 
 //cost indicates w_k * \phi_k(s', s, x)
 void LinearCRF::CalcCost(std::vector<std::string> seq, int seq_no) {
-    (*ptr_start_node_)[seq_no].SetCost(1);
-    (*ptr_stop_node_)[seq_no].SetCost(1);
+    (*ptr_start_node_)[seq_no].SetCost(DEFAULT_COST_VALUE);
+    (*ptr_stop_node_)[seq_no].SetCost(DEFAULT_COST_VALUE);
     std::vector< Path*> ptr_start_rpath = (*ptr_start_node_)[seq_no].GetRPath();
     for(std::vector< Path*>::iterator it = ptr_start_rpath.begin(); it!= ptr_start_rpath.end(); ++it){
         ptr_feature_->CalcCost((*it));
@@ -468,17 +446,20 @@ void LinearCRF::ForwardBackward(std::vector<std::string> seq, int seq_no) {
     for (int j = 0; j<tag_num_; ++j) {
         Node *p_node = stop_lpath[j]->GetLNode();
         (*ptr_Z_)[seq_no] = p_node->SumExp((*ptr_Z_)[seq_no],stop_lpath[j]->GetCost()*p_node->GetCost(),p_node->GetAlpha(),(j==0));
+//        (*ptr_Z_)[seq_no] = p_node->SumExp((*ptr_Z_)[seq_no],stop_lpath[j]->GetCost()+p_node->GetCost(),p_node->GetAlpha(),(j==0));
     }
+    //std::cout<<"the value of pnode is: "<<(*ptr_Z_)[seq_no]<<std::endl;
 #ifdef DEBUG_MODE_
     std::cout << "Z_ derived by alpha is"<<Z_<<std::endl;
 #endif
 #ifdef DEBUG_MODE_
-    std::vector<Path *> start_rpath= ptr_start_node_->GetRPath();
+    std::vector<Path *> start_rpath= (*ptr_start_node_)[seq_no].GetRPath();
     double beata_Z = 0;
     for (int j = 0; j < tag_num_; ++j) {
         Node *p_node = start_rpath[j]->GetRNode();
-        beata_Z = p_node->SumExp(beata_Z, ptr_start_node_->GetCost() * start_rpath[j]->GetCost(),p_node->GetBeta(),(j==0));
+        beata_Z = p_node->SumExp(beata_Z, (*ptr_start_node_)[seq_no].GetCost() * start_rpath[j]->GetCost(),p_node->GetBeta(),(j==0));
     }
+    std::cout << "Z_ derived by alpha is:" << beata_Z <<std::endl;
 #endif
 #ifdef DEBUG_MODE_
     std::cout << "Z_ derived by beta is"<<beata_Z<<std::endl;
@@ -486,10 +467,9 @@ void LinearCRF::ForwardBackward(std::vector<std::string> seq, int seq_no) {
     for(int i=0; i<seq.size(); ++i){
         double value = 0;
         for(int k=0; k<tag_num_; k++){
-            value += node_matrix_[i][k]->GetAlpha() * node_matrix_[i][k]->GetBeta();
+            value += node_matrix_[seq_no][i][k]->GetAlpha() * node_matrix_[seq_no][i][k]->GetBeta();
         }
-        //std::cout << i<<"th Z is: "<< value <<std::endl;
-        Z_ = value;
+        std::cout << i<<"th Z is: "<< value <<std::endl;
     }
 #endif
 }
@@ -605,7 +585,7 @@ void LinearCRF::CRFRun() {
         //calc loglikelihood function
         double loss_value = CalcLoglikelihoodFunction();
         std::cout << "loglikelihood is:"<<loss_value<<std::endl;
-        if(loss_value > CONVERGED_VALUE && k>10){
+        if(loss_value > CONVERGED_VALUE && k>100){
             std::cout << "Training completed"<<std::endl;
             is_converged_ = true;
         }

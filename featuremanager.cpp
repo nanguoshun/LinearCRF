@@ -13,7 +13,7 @@ Feature::Feature(std::vector<std::string> *ptr_observ_vector, std::vector<std::s
     ptr_reverse_feature_map_ = new std::map<int, std::pair<int, int>>;
     CreateFeatureMap(ptr_observ_vector, ptr_tag_vector, ptr_x_corpus_map, ptr_tag_map_reverse, num_of_seq);
     ptr_w_vector_ = new std::vector<double>(ptr_feature_map_->size());
-    std::fill(ptr_w_vector_->begin(),ptr_w_vector_->end(),0);
+    std::fill(ptr_w_vector_->begin(),ptr_w_vector_->end(), 0.5);
     //for test only
 /*
     double array[12] = {0.65,0.2,0.5,0.25,0.45,0.15,0.35,0.4,0.6,0.3,0.1,0.15};
@@ -76,20 +76,20 @@ void Feature::CreateFeatureMap(std::vector<std::string> *ptr_observ_vector, std:
     feature_size_node_= index_offset;
     index_offset = 0;
     //for start_node
-    int start_node_flg = START_NODE_FLAG;
+    //int start_node_flg = START_NODE_FLAG;
     for (int seq_no = 0; seq_no < num_of_seq; ++seq_no) {
         for (int k = 0; k < ptr_tag_map_reverse->size() ; ++k) {
-            InsertFeature(std::make_pair(start_node_flg,k),&index_offset,feature_size_edge_+feature_size_node_, ptr_of, false);
+            InsertFeature(std::make_pair(START_NODE_FLAG-seq_no,k),&index_offset,feature_size_edge_+feature_size_node_, ptr_of, false);
         }
-        start_node_flg--;
+       // start_node_flg--;
     }
     //for stop_node
-    int stop_node_flg = STOP_NODE_FLAG;
+    //int stop_node_flg = STOP_NODE_FLAG;
     for (int seq_no = 0; seq_no < num_of_seq; ++seq_no) {
         for (int k = 0; k < ptr_tag_map_reverse->size(); ++k) {
-            InsertFeature(std::make_pair(k, stop_node_flg), &index_offset, feature_size_edge_ + feature_size_node_, ptr_of, false);
+            InsertFeature(std::make_pair(k, STOP_NODE_FLAG-seq_no), &index_offset, feature_size_edge_ + feature_size_node_, ptr_of, false);
         }
-        stop_node_flg--;
+        //stop_node_flg--;
     }
     feature_size_start_stop_ = index_offset;
     feature_size_ = feature_size_edge_ + feature_size_node_ + feature_size_start_stop_;
@@ -111,7 +111,7 @@ void Feature::InsertFeature(std::pair<int, int> feature_pair, int *index, int of
 }
 
 void Feature::CalcCost(Node *ptrnode) {
-    double cost = 1;
+    double cost = DEFAULT_COST_VALUE;
     int observation = ptrnode->GetX();
     int y = ptrnode->GetY();
     int index = GetFeatureIndex(std::make_pair(observation,y));
@@ -125,7 +125,7 @@ void Feature::CalcCost(Node *ptrnode) {
 }
 
 void Feature::CalcCost(Path *ptrpath) {
-    double cost = 1;
+    double cost = DEFAULT_COST_VALUE;
     int lnodeY = ptrpath->GetLNode()->GetY();
     int rnodeY = ptrpath->GetRNode()->GetY();
     int index = GetFeatureIndex(std::make_pair(lnodeY, rnodeY));
