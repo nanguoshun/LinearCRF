@@ -27,9 +27,21 @@ void Path::CalcExpectation(double Z, std::vector<double> *ptr_expectation, doubl
         (*ptr_expectation)[feature_index_] += expectation_;
        // std::cout << "The expection of feature " << feature_index_ <<" is: "<<(*ptr_expectation)[feature_index_]<<std::endl;
     } else{
-        std::cout << "error" <<std::endl;
+//        std::cout << "error" <<std::endl;
     }
     (*ppath_expectation) += expectation_;
+}
+
+void Path::CalcLogExpectation(double Z, std::vector<double> *ptr_expectation, double *ppath_expectation) {
+    double alpha = ptr_lnode_->GetAlpha();
+    double beta = ptr_rnode_->GetBeta();
+    double cost = cost_ + ptr_lnode_->GetCost();
+    double value  = alpha + beta + cost - Z;
+    expectation_ = std::exp(value);
+    if(feature_index_!=FEATURE_NO_EXIST){
+        (*ptr_expectation)[feature_index_] += expectation_; //LogSumExp((*ptr_expectation)[feature_index_], expectation_,((*ptr_expectation)[feature_index_]==0))
+    }
+    (*ppath_expectation) += expectation_; //LogSumExp((*ppath_expectation),expectation_,((*ppath_expectation) == 0));
 }
 
 void Path::AddNode(Node *ptr_lnode, Node *ptr_rnode) {

@@ -25,10 +25,18 @@ Decoder::Decoder(DatasetMgr *ptr_datamgr) {
     ptr_start_node_ = new std::vector<Node>;
     ptr_stop_node_ = new std::vector<Node>;
     ptr_decoded_tag_ = new std::vector<std::vector<std::string>>();
+    ptr_tag_set_matrix_ = new std::vector<std::set<std::string>>;
     for(int seq_no = 0; seq_no<num_of_instance_; ++seq_no){
         std::vector<std::string> *pvector = new std::vector<std::string>((*ptr_seq_matrix_)[seq_no].size());
         ptr_decoded_tag_->push_back(*pvector);
+        std::set<std::string> *pset = new std::set<std::string>;
+        ptr_tag_set_matrix_->push_back(*pset);
     }
+    FromVectorToSet();
+}
+
+Decoder::Decoder() {
+
 }
 
 Decoder::~Decoder() {
@@ -49,7 +57,7 @@ void Decoder::DeleteLattice() {
     delete ptr_stop_node_;
     for(int seq_no = 0; seq_no<num_of_instance_; ++seq_no){
         for(int i=0; i<(*ptr_seq_matrix_)[seq_no].size(); ++i){
-            for(int j=0; j<tag_num_; ++j){
+            for(int j=0; j<(*ptr_tag_set_matrix_)[seq_no].size(); ++j){
                 delete node_matrix_[seq_no][i][j];
             }
         }
@@ -60,6 +68,14 @@ void Decoder::DeleteLattice() {
             delete &ptr_node_vector;
         }
     }
+    for(int seq_no = 0; seq_no<num_of_instance_; ++seq_no){
+        std::set<std::string> *ptr_tagset = &((*ptr_tag_set_matrix_)[seq_no]);
+        std::vector<std::string> *ptr_decoded_tag = &((*ptr_decoded_tag_)[seq_no]);
+        delete ptr_tagset;
+        delete ptr_decoded_tag;
+    }
+    delete ptr_tag_set_matrix_;
+    delete ptr_decoded_tag_;
 }
 
 
@@ -159,7 +175,7 @@ void Decoder::BuildNode(std::vector<std::string> seq, int seq_no) {
     }
     //create node in each row
     for (int i = 0; i < seq.size(); ++i) {
-        for (std::set<std::string>::iterator it = ptr_tag_set_->begin(); it != ptr_tag_set_->end(); ++it) {
+        for (std::set<std::string>::iterator it = (*ptr_tag_set_matrix_)[seq_no].begin(); it != (*ptr_tag_set_matrix_)[seq_no].end(); ++it) {
             //std::cout << "the string value of x and y are: " << seq[i] << ", " << (*it) << std::endl;
             int observ = ptr_x_corpus_map_->find(seq[i])->second;
             int tag = ptr_tag_map_->find((*it))->second;
@@ -191,14 +207,14 @@ void Decoder::SetPathFeature(std::pair<int, int> feature_pair, Path *ppath) {
 void Decoder::BuildLPath(std::vector<std::string> seq, int seq_no) {
     //create the vector of left path for each node
     for (int i = 0; i <seq.size() ; ++i) {
-        for(int j=0; j<tag_num_;++j){
+        for(int j=0; j<(*ptr_tag_set_matrix_)[seq_no].size();++j){
             if(i==0){
                 Path *ppath = new Path(&((*ptr_start_node_)[seq_no]),node_matrix_[seq_no][i][j]);
                 //set feature index for each path (edge)
                 SetPathFeature(std::make_pair(START_NODE_FLAG-seq_no,node_matrix_[seq_no][i][j]->GetY()),ppath);
                 node_matrix_[seq_no][i][j]->AddPath(ppath, true);
             } else{
-                for(int k=0; k<tag_num_; ++k){
+                for(int k=0; k<(*ptr_tag_set_matrix_)[seq_no].size(); ++k){
                     Path *ppath = new Path(node_matrix_[seq_no][i-1][k],node_matrix_[seq_no][i][j]);
                     //set feature index for each path (edge)
                     SetPathFeature(std::make_pair(node_matrix_[seq_no][i-1][k]->GetY(),node_matrix_[seq_no][i][j]->GetY()),ppath);
@@ -208,7 +224,7 @@ void Decoder::BuildLPath(std::vector<std::string> seq, int seq_no) {
         }
     }
     //create the left path vector for the stop node;
-    for(int k=0; k<tag_num_; ++k){
+    for(int k=0; k<(*ptr_tag_set_matrix_)[seq_no].size(); ++k){
         Path *ppath = new Path(node_matrix_[seq_no][seq.size()-1][k],&((*ptr_stop_node_)[seq_no]));
         SetPathFeature(std::make_pair(node_matrix_[seq_no][seq.size()-1][k]->GetY(),STOP_NODE_FLAG-seq_no),ppath);
         (*ptr_stop_node_)[seq_no].AddPath(ppath, true);
@@ -218,13 +234,13 @@ void Decoder::BuildLPath(std::vector<std::string> seq, int seq_no) {
 //build right path
 void Decoder::BuildRPath(std::vector<std::string> seq, int seq_no) {
     for (int i = seq.size()-1; i >=0 ; --i) {
-        for(int j=0; j<tag_num_; ++j){
+        for(int j=0; j<(*ptr_tag_set_matrix_)[seq_no].size(); ++j){
             if(i == seq.size()-1){
                 Path *ppath = new Path(node_matrix_[seq_no][i][j],&((*ptr_stop_node_)[seq_no]));
                 SetPathFeature(std::make_pair(node_matrix_[seq_no][i][j]->GetY(),STOP_NODE_FLAG-seq_no),ppath);
                 node_matrix_[seq_no][i][j]->AddPath(ppath, false);
             }else{
-                for(int k=0; k<tag_num_; ++k){
+                for(int k=0; k<(*ptr_tag_set_matrix_)[seq_no].size(); ++k){
                     Path *ppath = new Path(node_matrix_[seq_no][i][j], node_matrix_[seq_no][i+1][k]);
                     SetPathFeature(std::make_pair(node_matrix_[seq_no][i][j]->GetY(),node_matrix_[seq_no][i+1][k]->GetY()),ppath);
                     node_matrix_[seq_no][i][j]->AddPath(ppath,false);
@@ -233,7 +249,7 @@ void Decoder::BuildRPath(std::vector<std::string> seq, int seq_no) {
         }
     }
     //create the right path vector for the start node;
-    for(int k=0; k<tag_num_; ++k){
+    for(int k=0; k<(*ptr_tag_set_matrix_)[seq_no].size(); ++k){
         Path *ppath = new Path(&((*ptr_start_node_)[seq_no]),node_matrix_[seq_no][0][k]);
         SetPathFeature(std::make_pair(START_NODE_FLAG-seq_no,node_matrix_[seq_no][0][k]->GetY()),ppath);
         (*ptr_start_node_)[seq_no].AddPath(ppath, false);
@@ -271,7 +287,7 @@ void Decoder::CalcCost(std::vector<std::string> seq, int seq_no) {
         ptr_feature_->CalcCost((*it));
     }
     for(int i=0; i<seq.size(); ++i){
-        for(int j=0; j<tag_num_; ++j){
+        for(int j=0; j<(*ptr_tag_set_matrix_)[seq_no].size(); ++j){
             //calc node cost
             ptr_feature_->CalcCost(node_matrix_[seq_no][i][j]);
             //calc left path cost of each node
@@ -295,7 +311,7 @@ void Decoder::CalcCost(std::vector<std::string> seq, int seq_no) {
 void Decoder::Viterbi(std::vector<std::string> seq, int seq_no) {
     (*ptr_start_node_)[seq_no].SetBestCost(1);
     for(int i=0; i<seq.size(); ++i){
-        for(int j=0; j<tag_num_; ++j){
+        for(int j=0; j<(*ptr_tag_set_matrix_)[seq_no].size(); ++j){
             SelectBestNode(node_matrix_[seq_no][i][j]);
         }
     }
@@ -313,7 +329,7 @@ void Decoder::SelectBestNode(Node *pNode) {
     Node *p_best_node;
     std::vector<Path *> ppath = pNode->GetLPath();
     for(std::vector<Path *>::iterator it = ppath.begin(); it!=ppath.end(); ++it){
-        double cost =  (*it)->GetLNode()->GetBestCost() * ((*it)->GetCost() *  (*it)->GetLNode()->GetCost());
+        double cost =  (*it)->GetLNode()->GetBestCost() + ((*it)->GetCost() +  (*it)->GetLNode()->GetCost());
         if(cost > best_cost){
             best_cost = cost;
             p_best_node = (*it)->GetLNode();
@@ -343,12 +359,68 @@ void Decoder::WriteDecodingTagtoFile() {
     for(int seq_no = 0; seq_no < num_of_instance_; ++seq_no) {
         std::vector<std::string> seq = (*ptr_seq_matrix_)[seq_no];
         for(int i=0; i<seq.size(); i++){
-            of << seq[i] + " " + (*ptr_decoded_tag_)[seq_no][i];
+            of << seq[i] + " " + (*ptr_tag_seq_)[seq_no][i] + " " + (*ptr_decoded_tag_)[seq_no][i];
             of << std::endl;
         }
         of << ". . O";
         of << std::endl;
         of << std::endl;
+    }
+}
+
+void Decoder::RewriteTrainandTestData(const char *origfile, const char *newfile) {
+//    std::ifstream ifs("train.txt");
+//    std::ofstream ofs("newtrain.txt");
+    std::ifstream ifs(origfile);
+    std::ofstream ofs(newfile);
+    std::string str;
+    while (getline(ifs,str)){
+        std::stringstream ss(str);
+        std::string x;
+        std::string tag;
+        std::string bio;
+        ss >> x;
+        ss >> tag;
+        ss >> bio;
+//        ofs << x + " "+bio+" "+tag<<std::endl;
+        ofs << x + " "+tag+" "+tag<<std::endl;
+//        ofs << x +" "+tag<<std::endl;
+    }
+}
+
+void Decoder::CalculateResult() {
+//    std::ifstream ifs("encodingfile.txt");
+    std::ifstream ifs("test_info_crf");
+    std::string str;
+    double correct_prediction = 0;
+    double all_prediction = 0;
+    while(getline(ifs,str)){
+        std::string predicted_str;
+        std::string ground_truth;
+        std::stringstream ss(str);
+        std::string tmp;
+        ss >> tmp;
+        ss >> tmp;
+        ss >> ground_truth;
+        ss >> predicted_str;
+        all_prediction ++;
+        if(ground_truth == predicted_str){
+            correct_prediction++;
+        }
+    }
+    double correct_ratio = correct_prediction / all_prediction;
+    std::cout << "correct ratio is "<<correct_ratio<<std::endl;
+}
+
+void Decoder::FromVectorToSet() {
+    for(int seq_no=0; seq_no < num_of_instance_; ++seq_no){
+        std::set<std::string> *ptr_tag_set = &((*ptr_tag_set_matrix_)[seq_no]);
+        std::vector<std::string> tag_vector = (*ptr_tag_seq_)[seq_no];
+        for(int i = 0; i<tag_vector.size(); ++i){
+            if(ptr_tag_set->find(tag_vector[i]) == ptr_tag_set->end()){
+                ptr_tag_set->insert(tag_vector[i]);
+            }
+        }
     }
 }
 
@@ -364,6 +436,7 @@ void Decoder::Decoding() {
     for(int seq_no = 0; seq_no < num_of_instance_; ++seq_no) {
         std::vector<std::string> seq = (*ptr_seq_matrix_)[seq_no];
         Viterbi(seq, seq_no);
+        std::cout << "run viterbi for "<< seq_no << "th sentences"<<std::endl;
     }
     WriteDecodingTagtoFile();
 }

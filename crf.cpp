@@ -6,6 +6,7 @@
 #include <numeric>
 #include <cmath>
 #include <string>
+#include <pthread.h>
 
 LinearCRF::LinearCRF(DatasetMgr *ptr_datamgr_training) {
     AllocateSpace();
@@ -22,7 +23,7 @@ LinearCRF::LinearCRF(DatasetMgr *ptr_datamgr_training) {
     GenerateSeqFromVector(ptr_x_train_vector_,ptr_seq_matrix_);
     GenerateSeqFromVector(ptr_tag_vector_,ptr_tag_seq_);
     num_of_instance_ = ptr_datamgr_->GetNumOfTrainingSeqs();
-    tag_num_ = ptr_tag_set_->size();
+    //tag_num_ = ptr_tag_set_->size();
     CreateTagObservMap();
     Init();
 }
@@ -53,12 +54,18 @@ void LinearCRF::Init() {
     ptr_gradient_ = new std::vector<double>(ptr_feature_->GetFeatureSize());
     std::fill(ptr_gradient_->begin(),ptr_gradient_->end(),0);
     ptr_decoded_tag_ = new std::vector<std::vector<std::string>>();
+    ptr_tag_set_matrix_ = new std::vector<std::set<std::string>>;
     for(int seq_no = 0; seq_no<num_of_instance_; ++seq_no){
         std::vector<std::string> *pvector = new std::vector<std::string>((*ptr_seq_matrix_)[seq_no].size());
         ptr_decoded_tag_->push_back(*pvector);
+        std::set<std::string> *pset = new std::set<std::string>;
+        ptr_tag_set_matrix_->push_back(*pset);
     }
+    FromVectorToSet();
     ptr_Z_ = new std::vector<double>(num_of_instance_);
     is_converged_  = false;
+    num_of_thread_ =  std::thread::hardware_concurrency();
+    ptr_thread_vector_ = new std::vector<std::thread>;
 
 }
 
@@ -98,6 +105,7 @@ LinearCRF::~LinearCRF() {
     delete ptr_seq_matrix_;
     delete ptr_tag_seq_;
     delete ptr_Z_;
+    delete ptr_thread_vector_;
     DeleteLattice();
 }
 
@@ -106,7 +114,7 @@ void LinearCRF::DeleteLattice() {
     delete ptr_stop_node_;
     for(int seq_no = 0; seq_no<num_of_instance_; ++seq_no){
         for(int i=0; i<(*ptr_seq_matrix_)[seq_no].size(); ++i){
-            for(int j=0; j<tag_num_; ++j){
+            for(int j=0; j<(*ptr_tag_set_matrix_)[seq_no].size(); ++j){
                 delete node_matrix_[seq_no][i][j];
             }
         }
@@ -117,6 +125,15 @@ void LinearCRF::DeleteLattice() {
             delete &ptr_node_vector;
         }
     }
+    for(int seq_no = 0; seq_no<num_of_instance_; ++seq_no){
+        std::set<std::string> *ptr_tagset = &((*ptr_tag_set_matrix_)[seq_no]);
+        std::vector<std::string> *ptr_decoded_tag = &((*ptr_decoded_tag_)[seq_no]);
+        delete ptr_tagset;
+        delete ptr_decoded_tag;
+    }
+    delete ptr_tag_set_matrix_;
+    delete ptr_decoded_tag_;
+
 }
 
 void LinearCRF::ResetParameters() {
@@ -124,6 +141,7 @@ void LinearCRF::ResetParameters() {
 }
 
 void LinearCRF::BuildLattice() {
+#ifdef DEBUG_MODE_
     int m=1;
     for(int seq_no = 0; seq_no < num_of_instance_; ++seq_no) {
         std::vector<std::string> seq = (*ptr_seq_matrix_)[seq_no];
@@ -134,6 +152,7 @@ void LinearCRF::BuildLattice() {
         }
         m+=2;
     }
+#endif
     for(int seq_no = 0; seq_no < num_of_instance_; ++seq_no) {
         Node *p_startnode = new Node(START_NODE_FLAG-seq_no, START_NODE_FLAG-seq_no);
         ptr_start_node_->push_back(*p_startnode);
@@ -158,20 +177,33 @@ void LinearCRF::BuildLattice() {
     }
 }
 
+
+void LinearCRF::FromVectorToSet() {
+    for(int seq_no=0; seq_no < num_of_instance_; ++seq_no){
+        std::set<std::string> *ptr_tag_set = &((*ptr_tag_set_matrix_)[seq_no]);
+        std::vector<std::string> tag_vector = (*ptr_tag_seq_)[seq_no];
+        for(int i = 0; i<tag_vector.size(); ++i){
+            if(ptr_tag_set->find(tag_vector[i]) == ptr_tag_set->end()){
+                ptr_tag_set->insert(tag_vector[i]);
+            }
+        }
+    }
+}
+
 void LinearCRF::BuildNode(std::vector<std::string> seq, int seq_no) {
     //create each row
     for (int i = 0; i < seq.size(); ++i) {
         std::vector<Node *> *ptr_node_vector = new std::vector<Node *>;
         node_matrix_[seq_no].push_back(*ptr_node_vector);
     }
-
     //create node in each row
     for (int i = 0; i < seq.size(); ++i) {
-        for (std::set<std::string>::iterator it = ptr_tag_set_->begin(); it != ptr_tag_set_->end(); ++it) {
-            //std::cout << "the string value of x and y are: " << seq[i] << ", " << (*it) << std::endl;
+        for (std::set<std::string>::iterator it = (*ptr_tag_set_matrix_)[seq_no].begin(); it != (*ptr_tag_set_matrix_)[seq_no].end(); ++it) {
+//        for (std::set<std::string>::iterator it = ptr_tag_set_->begin(); it != ptr_tag_set_->end(); ++it) {
+            std::cout << "the string value of x and y are: " << seq[i] << ", " << (*it) << std::endl;
             int observ = ptr_x_corpus_map_->find(seq[i])->second;
             int tag = ptr_tag_map_->find((*it))->second;
-            std::cout << "tag Y is"<<tag<<std::endl;
+            //std::cout << "tag Y is"<<tag<<std::endl;
             Node *pnode = new Node(observ + FEATURE_CODE_OFFSET, tag);
             //set feature index for each node.
             int feature_index = FEATURE_NO_EXIST;
@@ -186,7 +218,6 @@ void LinearCRF::BuildNode(std::vector<std::string> seq, int seq_no) {
     }
 }
 
-
 void LinearCRF::SetPathFeature(std::pair<int, int> feature_pair, Path *ppath) {
         int feature_index = FEATURE_NO_EXIST;
         if(ptr_feature_->GetFeatureMap()->find(feature_pair) != ptr_feature_->GetFeatureMap()->end()){
@@ -199,14 +230,14 @@ void LinearCRF::SetPathFeature(std::pair<int, int> feature_pair, Path *ppath) {
 void LinearCRF::BuildLPath(std::vector<std::string> seq, int seq_no) {
     //create the vector of left path for each node
     for (int i = 0; i <seq.size() ; ++i) {
-        for(int j=0; j<tag_num_;++j){
+        for(int j=0; j<(*ptr_tag_set_matrix_)[seq_no].size();++j){
             if(i==0){
                 Path *ppath = new Path(&((*ptr_start_node_)[seq_no]),node_matrix_[seq_no][i][j]);
                 //set feature index for each path (edge)
                 SetPathFeature(std::make_pair(START_NODE_FLAG-seq_no,node_matrix_[seq_no][i][j]->GetY()),ppath);
                 node_matrix_[seq_no][i][j]->AddPath(ppath, true);
             } else{
-                for(int k=0; k<tag_num_; ++k){
+                for(int k=0; k<(*ptr_tag_set_matrix_)[seq_no].size(); ++k){
                     Path *ppath = new Path(node_matrix_[seq_no][i-1][k],node_matrix_[seq_no][i][j]);
                     //set feature index for each path (edge)
                     SetPathFeature(std::make_pair(node_matrix_[seq_no][i-1][k]->GetY(),node_matrix_[seq_no][i][j]->GetY()),ppath);
@@ -216,7 +247,7 @@ void LinearCRF::BuildLPath(std::vector<std::string> seq, int seq_no) {
         }
     }
     //create the left path vector for the stop node;
-    for(int k=0; k<tag_num_; ++k){
+    for(int k=0; k<(*ptr_tag_set_matrix_)[seq_no].size(); ++k){
         Path *ppath = new Path(node_matrix_[seq_no][seq.size()-1][k],&((*ptr_stop_node_)[seq_no]));
         SetPathFeature(std::make_pair(node_matrix_[seq_no][seq.size()-1][k]->GetY(),STOP_NODE_FLAG-seq_no),ppath);
         (*ptr_stop_node_)[seq_no].AddPath(ppath, true);
@@ -226,13 +257,13 @@ void LinearCRF::BuildLPath(std::vector<std::string> seq, int seq_no) {
 //build right path
 void LinearCRF::BuildRPath(std::vector<std::string> seq, int seq_no) {
     for (int i = seq.size()-1; i >=0 ; --i) {
-        for(int j=0; j<tag_num_; ++j){
+        for(int j=0; j<(*ptr_tag_set_matrix_)[seq_no].size(); ++j){
             if(i == seq.size()-1){
                 Path *ppath = new Path(node_matrix_[seq_no][i][j],&((*ptr_stop_node_)[seq_no]));
                 SetPathFeature(std::make_pair(node_matrix_[seq_no][i][j]->GetY(),STOP_NODE_FLAG-seq_no),ppath);
                 node_matrix_[seq_no][i][j]->AddPath(ppath, false);
             }else{
-                for(int k=0; k<tag_num_; ++k){
+                for(int k=0; k<(*ptr_tag_set_matrix_)[seq_no].size(); ++k){
                     Path *ppath = new Path(node_matrix_[seq_no][i][j], node_matrix_[seq_no][i+1][k]);
                     SetPathFeature(std::make_pair(node_matrix_[seq_no][i][j]->GetY(),node_matrix_[seq_no][i+1][k]->GetY()),ppath);
                     node_matrix_[seq_no][i][j]->AddPath(ppath,false);
@@ -241,7 +272,7 @@ void LinearCRF::BuildRPath(std::vector<std::string> seq, int seq_no) {
         }
     }
     //create the right path vector for the start node;
-    for(int k=0; k<tag_num_; ++k){
+    for(int k=0; k<(*ptr_tag_set_matrix_)[seq_no].size(); ++k){
         Path *ppath = new Path(&((*ptr_start_node_)[seq_no]),node_matrix_[seq_no][0][k]);
         SetPathFeature(std::make_pair(START_NODE_FLAG-seq_no,node_matrix_[seq_no][0][k]->GetY()),ppath);
         (*ptr_start_node_)[seq_no].AddPath(ppath, false);
@@ -306,13 +337,13 @@ void LinearCRF::CalcFeatureExpectation(std::vector<std::string> seq, int seq_no)
     std::vector<Path *> ppath = (*ptr_start_node_)[seq_no].GetRPath();
     double expectation = 0;
     for (std::vector<Path *>::iterator it = ppath.begin(); it != ppath.end(); ++it) {
-        (*it)->CalcExpectation((*ptr_Z_)[seq_no], ptr_e_, &expectation);
+        (*it)->CalcLogExpectation((*ptr_Z_)[seq_no], ptr_e_, &expectation);
     }
     int x_size = seq.size();
     //calc expectation for each node and its right path.
     for(int i=0; i<x_size; ++i){
-        for(int j=0; j<tag_num_; ++j){
-            node_matrix_[seq_no][i][j]->CalcExpectation((*ptr_Z_)[seq_no],ptr_e_);
+        for(int j=0; j<(*ptr_tag_set_matrix_)[seq_no].size(); ++j){
+            node_matrix_[seq_no][i][j]->CalcLogExpectation((*ptr_Z_)[seq_no],ptr_e_);
 #ifdef DEBUG_MODE
             std::cout << "expectation of the node"<<i<< ", "<<j<< " is: "<< node_matrix_[i][j]->GetExpectation() <<std::endl;
 #endif
@@ -338,7 +369,7 @@ void LinearCRF::CalcCost(std::vector<std::string> seq, int seq_no) {
         ptr_feature_->CalcCost((*it));
     }
     for(int i=0; i<seq.size(); ++i){
-        for(int j=0; j<tag_num_; ++j){
+        for(int j=0; j<(*ptr_tag_set_matrix_)[seq_no].size(); ++j){
             //calc node cost
             ptr_feature_->CalcCost(node_matrix_[seq_no][i][j]);
             //calc left path cost of each node
@@ -359,18 +390,78 @@ void LinearCRF::CalcCost(std::vector<std::string> seq, int seq_no) {
     }
 }
 
+void LinearCRF::MainThreadCalculation() {
+    int num_of_batch = num_of_instance_ / num_of_thread_;
+    int num_of_rest = num_of_instance_ % num_of_thread_;
+    CRFThread  *ptr_task = new CRFThread(ptr_start_node_,ptr_stop_node_,node_matrix_,ptr_Z_);
+    for(int batch_no = 0; batch_no < num_of_batch; ++batch_no){
+        for(int thread_no = 0; thread_no < num_of_thread_; ++thread_no) {
+            int seq_no = batch_no * num_of_thread_ + thread_no;
+            ThreadCalc(ptr_task,seq_no);
+        }
+        ThreadStart();
+        ptr_thread_vector_->clear();
+    }
+    for(int seq_no = num_of_instance_ - num_of_rest; seq_no<num_of_instance_; ++seq_no){
+        ThreadCalc(ptr_task,seq_no);
+    }
+    ThreadStart();
+    ptr_thread_vector_->clear();
+    for(int seq_no = 0; seq_no < num_of_instance_; ++seq_no) {
+        std::vector<std::string> seq = (*ptr_seq_matrix_)[seq_no];
+        CalcFeatureExpectation(seq,seq_no);
+    }
+}
+
+void LinearCRF::ThreadCalc(CRFThread *ptr_task,int seq_no) {
+    int x_size = (*ptr_seq_matrix_)[seq_no].size();
+    int y_size = (*ptr_tag_set_matrix_)[seq_no].size();
+    std::vector<double> *ptr_weight = ptr_feature_->GetWeightVector();
+    ptr_thread_vector_->push_back(std::thread(&CRFThread::CRFThreadRun,ptr_task,x_size,y_size,seq_no,ptr_weight));
+
+}
+
+void LinearCRF::ThreadStart() {
+    for(auto it = ptr_thread_vector_->begin(); it!=ptr_thread_vector_->end(); ++it){
+        (*it).join();
+    }
+}
+
 void LinearCRF::MainCalculation() {
     for(int seq_no = 0; seq_no < num_of_instance_; ++seq_no) {
         std::vector<std::string> seq = (*ptr_seq_matrix_)[seq_no];
+        clock_t start_time, end_time;
+        start_time = clock();
         CalcCost(seq, seq_no);
+        end_time = clock();
+#ifdef PERFORMANCE_CLOCK_TIME__
+        std::cout << "calc cost time is: "<<end_time-start_time<<std::endl;
+#endif
+        start_time = clock();
         ForwardBackward(seq,seq_no);
+        end_time = clock();
+#ifdef PERFORMANCE_CLOCK_TIME__
+        std::cout << "forward and backward time is: "<<end_time-start_time<<std::endl;
+#endif
+        start_time = clock();
         CalcFeatureExpectation(seq,seq_no);
+        end_time = clock();
+#ifdef PERFORMANCE_CLOCK_TIME__
+        std::cout << "calc expectation time is: "<<end_time-start_time<<std::endl;
+#endif
     }
 }
 
 // stochastic gradient descent;
 void LinearCRF::CalcGradient() {
-    MainCalculation();
+    clock_t start_time, end_time;
+    start_time = clock();
+//    MainCalculation();
+    MainThreadCalculation();
+    end_time = clock();
+#ifdef PERFORMANCE_CLOCK_TIME
+    std::cout << "main calc time is: "<<end_time-start_time<<std::endl;
+#endif
     int size = ptr_feature_->GetFeatureSize();
     std::vector<double> *ptr_weight = ptr_feature_->GetWeightVector();
     for(int k=0; k<size; ++k){
@@ -406,7 +497,8 @@ double LinearCRF::CalcLoglikelihoodFunction() {
     //std::cout << (*ptr_weight)[2]<<","<<(*ptr_weight)[5]<<","<<(*ptr_weight)[6]<<","<<(*ptr_weight)[9]<<","<<(*ptr_weight)[10]<<std::endl;
     double sum_denominator = 0;
     for(int seq_no = 0; seq_no < num_of_instance_; ++seq_no) {
-        sum_denominator += log((*ptr_Z_)[seq_no]);
+        sum_denominator += (*ptr_Z_)[seq_no];
+//        sum_denominator += (*ptr_Z_)[seq_no];
     }
     double l2 = 0;
     /*
@@ -423,41 +515,55 @@ double LinearCRF::CalcLoglikelihoodFunction() {
 
 void LinearCRF::ForwardBackward(std::vector<std::string> seq, int seq_no) {
     int x_size = seq.size();
-    (*ptr_start_node_)[seq_no].SetAlpha(1);
-    (*ptr_stop_node_)[seq_no].SetBeta(1);
+    (*ptr_start_node_)[seq_no].SetAlpha(0);
+    (*ptr_stop_node_)[seq_no].SetBeta(0);
+    int start_time, end_time;
+    start_time = clock();
     for(int i=0; i<x_size; ++i){
-        for(int j=0; j<tag_num_; ++j){
+        for(int j=0; j<(*ptr_tag_set_matrix_)[seq_no].size(); ++j){
             node_matrix_[seq_no][i][j]->CalcAlpha();
 #ifdef DEBUG_MODE
             std::cout << "the alpha of node "<<i<<","<<j<<" is: "<<node_matrix_[i][j]->GetAlpha()<<std::endl;
 #endif
         }
     }
+    end_time = clock();
+#ifdef PERFORMANCE_CLOCK_TIME_
+    std::cout << "forward time is: "<< end_time - start_time <<std::endl;
+#endif
+    start_time = clock();
     for (int i = x_size-1; i>=0 ; --i) {
-        for(int j=0; j<tag_num_; ++j){
+        for(int j=0; j<(*ptr_tag_set_matrix_)[seq_no].size(); ++j){
             node_matrix_[seq_no][i][j]->CalcBeta();
 #ifdef DEBUG_MODE
             std::cout << "the beta of node "<<i<<","<<j<<" is: "<<node_matrix_[i][j]->GetBeta()<<std::endl;
 #endif
         }
     }
+    end_time = clock();
+
+#ifdef PERFORMANCE_CLOCK_TIME_
+    std::cout << "backward time is: "<< end_time - start_time <<std::endl;
+#endif
+    start_time = clock();
     (*ptr_Z_)[seq_no] = 0;
     std::vector<Path *> stop_lpath= (*ptr_stop_node_)[seq_no].GetLPath();
-    for (int j = 0; j<tag_num_; ++j) {
+    for (int j = 0; j<(*ptr_tag_set_matrix_)[seq_no].size(); ++j) {
         Node *p_node = stop_lpath[j]->GetLNode();
-        (*ptr_Z_)[seq_no] = p_node->SumExp((*ptr_Z_)[seq_no],stop_lpath[j]->GetCost()*p_node->GetCost(),p_node->GetAlpha(),(j==0));
-//        (*ptr_Z_)[seq_no] = p_node->SumExp((*ptr_Z_)[seq_no],stop_lpath[j]->GetCost()+p_node->GetCost(),p_node->GetAlpha(),(j==0));
+//        (*ptr_Z_)[seq_no] = p_node->SumExp((*ptr_Z_)[seq_no],stop_lpath[j]->GetCost()*p_node->GetCost(),p_node->GetAlpha(),(j==0));
+        (*ptr_Z_)[seq_no] = p_node->LogSumExp((*ptr_Z_)[seq_no],stop_lpath[j]->GetCost()+p_node->GetCost(),p_node->GetAlpha(),(j==0));
     }
-    //std::cout<<"the value of pnode is: "<<(*ptr_Z_)[seq_no]<<std::endl;
-#ifdef DEBUG_MODE_
-    std::cout << "Z_ derived by alpha is"<<Z_<<std::endl;
+    end_time = clock();
+#ifdef PERFORMANCE_CLOCK_TIME_
+    std::cout << "Calc Z time is: "<< end_time - start_time <<std::endl;
 #endif
 #ifdef DEBUG_MODE_
+    std::cout<<"the value of pnode is: "<<(*ptr_Z_)[seq_no]<<std::endl;
     std::vector<Path *> start_rpath= (*ptr_start_node_)[seq_no].GetRPath();
     double beata_Z = 0;
-    for (int j = 0; j < tag_num_; ++j) {
+    for (int j = 0; j < (*ptr_tag_set_matrix_)[seq_no].size(); ++j) {
         Node *p_node = start_rpath[j]->GetRNode();
-        beata_Z = p_node->SumExp(beata_Z, (*ptr_start_node_)[seq_no].GetCost() * start_rpath[j]->GetCost(),p_node->GetBeta(),(j==0));
+        beata_Z = p_node->LogSumExp(beata_Z, (*ptr_start_node_)[seq_no].GetCost() + start_rpath[j]->GetCost(),p_node->GetBeta(),(j==0));
     }
     std::cout << "Z_ derived by alpha is:" << beata_Z <<std::endl;
 #endif
@@ -466,8 +572,8 @@ void LinearCRF::ForwardBackward(std::vector<std::string> seq, int seq_no) {
     std::cout << "==========="<<std::endl;
     for(int i=0; i<seq.size(); ++i){
         double value = 0;
-        for(int k=0; k<tag_num_; k++){
-            value += node_matrix_[seq_no][i][k]->GetAlpha() * node_matrix_[seq_no][i][k]->GetBeta();
+        for(int k=0; k<(*ptr_tag_set_matrix_)[seq_no].size(); k++){
+            value = LogSumExp(value,node_matrix_[seq_no][i][k]->GetAlpha() + node_matrix_[seq_no][i][k]->GetBeta(),(value==0));
         }
         std::cout << i<<"th Z is: "<< value <<std::endl;
     }
@@ -477,7 +583,7 @@ void LinearCRF::ForwardBackward(std::vector<std::string> seq, int seq_no) {
 void LinearCRF::Viterbi(std::vector<std::string> seq, int seq_no) {
     (*ptr_start_node_)[seq_no].SetBestCost(1);
     for(int i=0; i<seq.size(); ++i){
-        for(int j=0; j<tag_num_; ++j){
+        for(int j=0; j<(*ptr_tag_set_matrix_)[seq_no].size(); ++j){
             SelectBestNode(node_matrix_[seq_no][i][j]);
         }
     }
@@ -579,9 +685,25 @@ void LinearCRF::CRFRun() {
     //training
     int k = 0;
     while(!is_converged_){
+        clock_t start_time, end_time;
+        start_time = clock();
         ResetParameters();
+        end_time = clock();
+#ifdef PERFORMANCE_CLOCK_TIME
+        std::cout << "reset time is: "<<end_time-start_time<<std::endl;
+#endif
+        start_time = clock();
         CalcGradient();
+        end_time = clock();
+#ifdef PERFORMANCE_CLOCK_TIME
+        std::cout << "calc gradient time is: "<<end_time-start_time<<std::endl;
+#endif
+        start_time = clock();
         UpdateWeight();
+        end_time = clock();
+#ifdef PERFORMANCE_CLOCK_TIME
+        std::cout << "update weight time is: "<<end_time-start_time<<std::endl;
+#endif
         //calc loglikelihood function
         double loss_value = CalcLoglikelihoodFunction();
         std::cout << "loglikelihood is:"<<loss_value<<std::endl;

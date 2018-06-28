@@ -8,7 +8,8 @@
 #include <vector>
 #include <string>
 #include <map>
-
+#include <cmath>
+#include "common.h"
 class Path;
 
 class Node{
@@ -18,6 +19,7 @@ public:
     void CalcAlpha();
     void CalcBeta();
     void CalcExpectation(double Z, std::vector<double> *ptr_expectation);
+    void CalcLogExpectation(double Z, std::vector<double> *ptr_expectation);
     void SetCost(double cost);
     /**
      *
@@ -27,6 +29,7 @@ public:
      * @param isStart: check the based case
      * @return
      */
+
     inline double SumExp(double iteration_alpha, double cost, double lalpha, bool isStart){
         // calc \alpha * cost;
   //      double value = cost * lalpha;
@@ -35,6 +38,23 @@ public:
             return value; // init mode
         }else{
             return  (iteration_alpha + value);
+        }
+    }
+
+    inline double LogSumExp(double iteration_alpha, double cost, double lalpha, bool isStart){
+        // calc \alpha * cost;
+        //      double value = cost * lalpha;
+        double value = cost + lalpha;
+        if(isStart){
+            return value; // init mode
+        }
+        const double vmin = std::min(iteration_alpha,value);
+        const double vmax = std::max(iteration_alpha,value);
+        if(vmax > vmin + MINUS_LOG_EPSILON)
+        {
+            return vmax;
+        }else{
+            return vmax + std::log(std::exp(vmin-vmax)+1.0);
         }
     }
     double GetAlpha();

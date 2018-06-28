@@ -9,11 +9,11 @@
 
 Feature::Feature(std::vector<std::string> *ptr_observ_vector, std::vector<std::string> *ptr_tag_vector,
                  std::map<std::string, int> *ptr_x_corpus_map, std::map<int,std::string> *ptr_tag_map_reverse, int num_of_seq) {
-    ptr_feature_map_ = new std::map<std::pair<int, int>, int>;
-    ptr_reverse_feature_map_ = new std::map<int, std::pair<int, int>>;
+    ptr_feature_map_ = new std::unordered_map<std::pair<int ,int >, int,boost::hash<std::pair<int, int>>>;
+    ptr_reverse_feature_map_ = new std::unordered_map<int, std::pair<int ,int >>;
     CreateFeatureMap(ptr_observ_vector, ptr_tag_vector, ptr_x_corpus_map, ptr_tag_map_reverse, num_of_seq);
     ptr_w_vector_ = new std::vector<double>(ptr_feature_map_->size());
-    std::fill(ptr_w_vector_->begin(),ptr_w_vector_->end(), 0.5);
+    std::fill(ptr_w_vector_->begin(),ptr_w_vector_->end(), 0.0);
     //for test only
 /*
     double array[12] = {0.65,0.2,0.5,0.25,0.45,0.15,0.35,0.4,0.6,0.3,0.1,0.15};
@@ -24,8 +24,8 @@ Feature::Feature(std::vector<std::string> *ptr_observ_vector, std::vector<std::s
 }
 
 Feature::Feature(const char *feature_file_name) {
-    ptr_feature_map_ = new std::map<std::pair<int, int>, int>;
-    ptr_reverse_feature_map_ = new std::map<int, std::pair<int, int>>;
+    ptr_feature_map_ = new std::unordered_map<std::pair<int ,int >, int,boost::hash<std::pair<int, int>>>;
+    ptr_reverse_feature_map_ = new std::unordered_map<int, std::pair<int ,int >>;
     CreateFeatureMap(feature_file_name);
     ptr_w_vector_ = new std::vector<double>(ptr_feature_map_->size());
     std::fill(ptr_w_vector_->begin(),ptr_w_vector_->end(),0);
@@ -110,6 +110,7 @@ void Feature::InsertFeature(std::pair<int, int> feature_pair, int *index, int of
     }
 }
 
+/*
 void Feature::CalcCost(Node *ptrnode) {
     double cost = DEFAULT_COST_VALUE;
     int observation = ptrnode->GetX();
@@ -117,9 +118,10 @@ void Feature::CalcCost(Node *ptrnode) {
     int index = GetFeatureIndex(std::make_pair(observation,y));
     if(FEATURE_NO_EXIST != index){
         double weight = (*ptr_w_vector_)[index];
-        cost = exp(weight);
+//        cost = exp(weight);
+        cost = weight;
     } else{
-        std::cout << "index error"<<std::endl;
+       // std::cout << "index error"<<std::endl;
     }
     ptrnode->SetCost(cost);
 }
@@ -132,20 +134,14 @@ void Feature::CalcCost(Path *ptrpath) {
     if (FEATURE_NO_EXIST != index) {
         //for the pair like (START, y)
         double weight = (*ptr_w_vector_)[index];
-        cost = exp(weight);
+//        cost = exp(weight);
+        cost = weight;
     } else{
-        std::cout << "index error"<<std::endl;
+       // std::cout << "index error"<<std::endl;
     }
     ptrpath->SetCost(cost);
 }
-
-int Feature::GetFeatureIndex(std::pair<int, int> str_pair) {
-    if(ptr_feature_map_->find(str_pair) != ptr_feature_map_->end()){
-        return ptr_feature_map_->find(str_pair)->second;
-    } else{
-        return FEATURE_NO_EXIST;
-    }
-}
+*/
 
 std::vector<double>* Feature::GetWeightVector() {
     return ptr_w_vector_;
@@ -154,15 +150,24 @@ std::vector<double>* Feature::GetWeightVector() {
 int Feature::GetFeatureSize() {
     return  feature_size_;
 }
-
-std::map<std::pair<int, int>, int>* Feature::GetFeatureMap() {
+/*
+std::unordered_map<std::pair<int, int>, int>* Feature::GetFeatureMap() {
     return  ptr_feature_map_;
 }
 
-std::map<int, std::pair<int, int>> * Feature::GetReverseFeatureMap() {
+std::unordered_map<int, std::pair<int, int>> * Feature::GetReverseFeatureMap() {
     return  ptr_reverse_feature_map_;
 }
+*/
 
+std::unordered_map<std::pair<int ,int >, int,boost::hash<std::pair<int, int>>>* Feature::GetFeatureMap() {
+    return  ptr_feature_map_;
+}
+
+
+std::unordered_map<int, std::pair<int ,int >> * Feature::GetReverseFeatureMap() {
+    return  ptr_reverse_feature_map_;
+}
 void Feature::SetWeightVector(int index, double weight) {
     (*ptr_w_vector_)[index] = weight;
 }

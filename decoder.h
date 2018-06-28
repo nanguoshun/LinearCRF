@@ -18,7 +18,9 @@
 class Decoder{
 public:
     explicit Decoder(DatasetMgr *ptr_datamgr);
+    Decoder();
     ~Decoder();
+
     void DeleteLattice();
     void CreateTagObservMap(const char *x_map_file, const char* tag_map_file);
 
@@ -45,6 +47,9 @@ public:
     void SelectBestNode(Node *pNode);
     void ViterbiBackTracking(std::vector<std::string> seq, int seq_no);
     void WriteDecodingTagtoFile();
+    void CalculateResult();
+    void RewriteTrainandTestData(const char *origfile, const char *newfile);
+    void FromVectorToSet();
 
 private:
     //
@@ -71,6 +76,7 @@ private:
     std::map<int, std::string> *ptr_tag_map_reverse_;
     std::map<std::string, int> *ptr_x_corpus_map_;
     std::map<int, std::string> *ptr_x_corpus_map_reverse_;
+    std::vector<std::set<std::string>> *ptr_tag_set_matrix_;
 
 
 };
