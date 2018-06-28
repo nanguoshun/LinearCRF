@@ -3,6 +3,7 @@
 //
 #include <sstream>
 #include "decoder.h"
+#include <thread>
 
 Decoder::Decoder(DatasetMgr *ptr_datamgr) {
     ptr_datamgr_ = ptr_datamgr;
@@ -27,12 +28,16 @@ Decoder::Decoder(DatasetMgr *ptr_datamgr) {
     ptr_decoded_tag_ = new std::vector<std::vector<std::string>>();
     ptr_tag_set_matrix_ = new std::vector<std::set<std::string>>;
     for(int seq_no = 0; seq_no<num_of_instance_; ++seq_no){
+        std::cout << (*ptr_seq_matrix_)[seq_no].size() <<std::endl;
         std::vector<std::string> *pvector = new std::vector<std::string>((*ptr_seq_matrix_)[seq_no].size());
         ptr_decoded_tag_->push_back(*pvector);
         std::set<std::string> *pset = new std::set<std::string>;
         ptr_tag_set_matrix_->push_back(*pset);
     }
     FromVectorToSet();
+    ptr_thread_vector_ = new std::vector<std::thread>;
+    num_of_thread_ =  std::thread::hardware_concurrency();
+
 }
 
 Decoder::Decoder() {
@@ -80,7 +85,8 @@ void Decoder::DeleteLattice() {
 
 
 void Decoder::ReadModel() {
-    std::ifstream is("modelfile.txt");
+
+    std::ifstream is("file.txt");
     std::string weightstr;
     std::string::size_type sz;
     int weight_index = 0;
@@ -163,9 +169,12 @@ void Decoder::BuildLattice() {
     }
     for(int seq_no = 0; seq_no < num_of_instance_; ++seq_no) {
         std::vector<std::string> seq = (*ptr_seq_matrix_)[seq_no];
+        std::cout << seq.size() <<std::endl;
         BuildRPath(seq,seq_no);
     }
 }
+
+
 
 void Decoder::BuildNode(std::vector<std::string> seq, int seq_no) {
     //create each row
@@ -179,7 +188,7 @@ void Decoder::BuildNode(std::vector<std::string> seq, int seq_no) {
             //std::cout << "the string value of x and y are: " << seq[i] << ", " << (*it) << std::endl;
             int observ = ptr_x_corpus_map_->find(seq[i])->second;
             int tag = ptr_tag_map_->find((*it))->second;
-            std::cout << "tag Y is"<<tag<<std::endl;
+            //std::cout << "tag Y is"<<tag<<std::endl;
             Node *pnode = new Node(observ + FEATURE_CODE_OFFSET, tag);
             //set feature index for each node.
             int feature_index = FEATURE_NO_EXIST;
@@ -254,6 +263,8 @@ void Decoder::BuildRPath(std::vector<std::string> seq, int seq_no) {
         SetPathFeature(std::make_pair(START_NODE_FLAG-seq_no,node_matrix_[seq_no][0][k]->GetY()),ppath);
         (*ptr_start_node_)[seq_no].AddPath(ppath, false);
     }
+    std::cout << seq.size() <<std::endl;
+
 }
 
 void Decoder::GenerateSeqFromVector(std::vector<std::string> *ptr_vector,
@@ -275,16 +286,50 @@ void Decoder::GenerateSeqFromVector(std::vector<std::string> *ptr_vector,
     }
 }
 
+void Decoder::CalcCost() {
+    int num_of_batch = num_of_instance_ / num_of_thread_;
+    int num_of_rest = num_of_instance_ % num_of_thread_;
+    CRFThread  *ptr_task = new CRFThread(ptr_start_node_,ptr_stop_node_,node_matrix_);
+    for(int batch_no = 0; batch_no < num_of_batch; ++batch_no){
+        for(int thread_no = 0; thread_no < num_of_thread_; ++thread_no) {
+            int seq_no = batch_no * num_of_thread_ + thread_no;
+            ThreadCalc(ptr_task,seq_no);
+        }
+        ThreadStart();
+        ptr_thread_vector_->clear();
+    }
+    //calc the rest of the
+    for(int seq_no = num_of_instance_ - num_of_rest; seq_no<num_of_instance_; ++seq_no){
+        ThreadCalc(ptr_task,seq_no);
+    }
+    ThreadStart();
+    ptr_thread_vector_->clear();
+}
+
+void Decoder::ThreadCalc(CRFThread *ptr_task,int seq_no) {
+    int x_size = (*ptr_seq_matrix_)[seq_no].size();
+    int y_size = (*ptr_tag_set_matrix_)[seq_no].size();
+    ptr_thread_vector_->push_back(std::thread(&CRFThread::CRFThreadViterbi,ptr_task,x_size,y_size,seq_no,ptr_feature_->GetWeightVector()));
+
+}
+
+void Decoder::ThreadStart() {
+    for(auto it = ptr_thread_vector_->begin(); it!=ptr_thread_vector_->end(); ++it){
+        (*it).join();
+    }
+}
+
+
 void Decoder::CalcCost(std::vector<std::string> seq, int seq_no) {
-    (*ptr_start_node_)[seq_no].SetCost(1);
-    (*ptr_stop_node_)[seq_no].SetCost(1);
+    (*ptr_start_node_)[seq_no].SetCost(DEFAULT_COST_VALUE_DEC);
+    (*ptr_stop_node_)[seq_no].SetCost(DEFAULT_COST_VALUE_DEC);
     std::vector< Path*> ptr_start_rpath = (*ptr_start_node_)[seq_no].GetRPath();
     for(std::vector< Path*>::iterator it = ptr_start_rpath.begin(); it!= ptr_start_rpath.end(); ++it){
-        ptr_feature_->CalcCost((*it));
+        ptr_feature_->CalcCostDec((*it));
     }
     std::vector<Path*> ptr_stop_lpath = (*ptr_stop_node_)[seq_no].GetLPath();
     for(std::vector< Path*>::iterator it = ptr_stop_lpath.begin(); it!= ptr_stop_lpath.end(); ++it){
-        ptr_feature_->CalcCost((*it));
+        ptr_feature_->CalcCostDec((*it));
     }
     for(int i=0; i<seq.size(); ++i){
         for(int j=0; j<(*ptr_tag_set_matrix_)[seq_no].size(); ++j){
@@ -329,8 +374,8 @@ void Decoder::SelectBestNode(Node *pNode) {
     Node *p_best_node;
     std::vector<Path *> ppath = pNode->GetLPath();
     for(std::vector<Path *>::iterator it = ppath.begin(); it!=ppath.end(); ++it){
-        double cost =  (*it)->GetLNode()->GetBestCost() + ((*it)->GetCost() +  (*it)->GetLNode()->GetCost());
-        if(cost > best_cost){
+        double cost =  (*it)->GetLNode()->GetBestCost() * ((*it)->GetCost() * (*it)->GetLNode()->GetCost());
+        if(cost >= best_cost){
             best_cost = cost;
             p_best_node = (*it)->GetLNode();
         }
@@ -358,7 +403,7 @@ void Decoder::WriteDecodingTagtoFile() {
     std::ofstream of("encodingfile.txt");
     for(int seq_no = 0; seq_no < num_of_instance_; ++seq_no) {
         std::vector<std::string> seq = (*ptr_seq_matrix_)[seq_no];
-        for(int i=0; i<seq.size(); i++){
+        for(int i=0; i<seq.size(); ++i){
             of << seq[i] + " " + (*ptr_tag_seq_)[seq_no][i] + " " + (*ptr_decoded_tag_)[seq_no][i];
             of << std::endl;
         }
@@ -390,7 +435,7 @@ void Decoder::RewriteTrainandTestData(const char *origfile, const char *newfile)
 
 void Decoder::CalculateResult() {
 //    std::ifstream ifs("encodingfile.txt");
-    std::ifstream ifs("test_info_crf");
+    std::ifstream ifs("test_info");
     std::string str;
     double correct_prediction = 0;
     double all_prediction = 0;
@@ -399,7 +444,6 @@ void Decoder::CalculateResult() {
         std::string ground_truth;
         std::stringstream ss(str);
         std::string tmp;
-        ss >> tmp;
         ss >> tmp;
         ss >> ground_truth;
         ss >> predicted_str;
@@ -428,7 +472,9 @@ void Decoder::Decoding() {
     BuildLattice();
     ReadModel();
     //calc cost
+    //CalcCost();
     for(int seq_no = 0; seq_no < num_of_instance_; ++seq_no) {
+        std::cout << (*ptr_seq_matrix_)[seq_no].size() <<std::endl;
         std::vector<std::string> seq = (*ptr_seq_matrix_)[seq_no];
         CalcCost(seq, seq_no);
     }

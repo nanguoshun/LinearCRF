@@ -102,9 +102,13 @@ void DatasetMgr::OpenTrainSet(std::vector<std::string> *ptr_vector, bool is_sent
      //   std::cout << *it_x << std::endl;
      //   std::cout << *it_tag << std::endl;
         ptr_x_vector_->push_back(*it_x);
+        ptr_x_set_->insert(*it_x);
+        //pos
         ptr_tag_vector_->push_back(*it_tag);
         ptr_tag_set_->insert(*it_tag);
-        ptr_x_set_->insert(*it_x);
+        //BIO
+        //ptr_tag_vector_->push_back(*it_parse);
+        //ptr_tag_set_->insert(*it_parse);
     }else{
         ptr_tag_set_->insert(*it_tag);
         //BOI tag, the "O" is indicated as OUT_FLAG, it indicates that no state transition for a "0" sentence.

@@ -303,6 +303,7 @@ double LinearCRF::CalcEmpiricalFi(std::vector<std::string> x_seq, std::vector<st
              y_i = STOP_NODE_FLAG-seq_no;
         } else{
              y_i = ptr_tag_map_->find(tag_seq[i+1])->second;
+             std::cout << ptr_tag_map_->find(tag_seq[i+1])->first<<std::endl;
         }
         index = ptr_feature_->GetFeatureIndex(std::make_pair(y_i_1,y_i));
         //count the num for each tag sequence
@@ -356,44 +357,10 @@ void LinearCRF::CalcFeatureExpectation(std::vector<std::string> seq, int seq_no)
 #endif
 }
 
-//cost indicates w_k * \phi_k(s', s, x)
-void LinearCRF::CalcCost(std::vector<std::string> seq, int seq_no) {
-    (*ptr_start_node_)[seq_no].SetCost(DEFAULT_COST_VALUE);
-    (*ptr_stop_node_)[seq_no].SetCost(DEFAULT_COST_VALUE);
-    std::vector< Path*> ptr_start_rpath = (*ptr_start_node_)[seq_no].GetRPath();
-    for(std::vector< Path*>::iterator it = ptr_start_rpath.begin(); it!= ptr_start_rpath.end(); ++it){
-        ptr_feature_->CalcCost((*it));
-    }
-    std::vector<Path*> ptr_stop_lpath = (*ptr_stop_node_)[seq_no].GetLPath();
-    for(std::vector< Path*>::iterator it = ptr_stop_lpath.begin(); it!= ptr_stop_lpath.end(); ++it){
-        ptr_feature_->CalcCost((*it));
-    }
-    for(int i=0; i<seq.size(); ++i){
-        for(int j=0; j<(*ptr_tag_set_matrix_)[seq_no].size(); ++j){
-            //calc node cost
-            ptr_feature_->CalcCost(node_matrix_[seq_no][i][j]);
-            //calc left path cost of each node
-            std::vector<Path *> lpath = node_matrix_[seq_no][i][j]->GetLPath();
-            std::vector<Path *> rpath = node_matrix_[seq_no][i][j]->GetRPath();
-            for(std::vector<Path *>::iterator it = lpath.begin(); it!=lpath.end(); ++it){
-                ptr_feature_->CalcCost(*it);
-            }
-#ifdef DEBUG_MODE
-            if(i==seq.size()-1){
-                std::cout << "this is the last row"<<std::endl;
-            }
-#endif
-            for(std::vector<Path *>::iterator it = rpath.begin(); it!=rpath.end(); ++it){
-                ptr_feature_->CalcCost(*it);
-            }
-        }
-    }
-}
-
 void LinearCRF::MainThreadCalculation() {
     int num_of_batch = num_of_instance_ / num_of_thread_;
     int num_of_rest = num_of_instance_ % num_of_thread_;
-    CRFThread  *ptr_task = new CRFThread(ptr_start_node_,ptr_stop_node_,node_matrix_,ptr_Z_);
+    CRFThread  *ptr_task = new CRFThread(ptr_start_node_,ptr_stop_node_,node_matrix_,ptr_Z_,ptr_e_);
     for(int batch_no = 0; batch_no < num_of_batch; ++batch_no){
         for(int thread_no = 0; thread_no < num_of_thread_; ++thread_no) {
             int seq_no = batch_no * num_of_thread_ + thread_no;
@@ -402,6 +369,7 @@ void LinearCRF::MainThreadCalculation() {
         ThreadStart();
         ptr_thread_vector_->clear();
     }
+    //calc the rest of the
     for(int seq_no = num_of_instance_ - num_of_rest; seq_no<num_of_instance_; ++seq_no){
         ThreadCalc(ptr_task,seq_no);
     }
@@ -416,8 +384,7 @@ void LinearCRF::MainThreadCalculation() {
 void LinearCRF::ThreadCalc(CRFThread *ptr_task,int seq_no) {
     int x_size = (*ptr_seq_matrix_)[seq_no].size();
     int y_size = (*ptr_tag_set_matrix_)[seq_no].size();
-    std::vector<double> *ptr_weight = ptr_feature_->GetWeightVector();
-    ptr_thread_vector_->push_back(std::thread(&CRFThread::CRFThreadRun,ptr_task,x_size,y_size,seq_no,ptr_weight));
+    ptr_thread_vector_->push_back(std::thread(&CRFThread::CRFThreadRun,ptr_task,x_size,y_size,seq_no,ptr_feature_->GetWeightVector()));
 
 }
 
@@ -427,30 +394,6 @@ void LinearCRF::ThreadStart() {
     }
 }
 
-void LinearCRF::MainCalculation() {
-    for(int seq_no = 0; seq_no < num_of_instance_; ++seq_no) {
-        std::vector<std::string> seq = (*ptr_seq_matrix_)[seq_no];
-        clock_t start_time, end_time;
-        start_time = clock();
-        CalcCost(seq, seq_no);
-        end_time = clock();
-#ifdef PERFORMANCE_CLOCK_TIME__
-        std::cout << "calc cost time is: "<<end_time-start_time<<std::endl;
-#endif
-        start_time = clock();
-        ForwardBackward(seq,seq_no);
-        end_time = clock();
-#ifdef PERFORMANCE_CLOCK_TIME__
-        std::cout << "forward and backward time is: "<<end_time-start_time<<std::endl;
-#endif
-        start_time = clock();
-        CalcFeatureExpectation(seq,seq_no);
-        end_time = clock();
-#ifdef PERFORMANCE_CLOCK_TIME__
-        std::cout << "calc expectation time is: "<<end_time-start_time<<std::endl;
-#endif
-    }
-}
 
 // stochastic gradient descent;
 void LinearCRF::CalcGradient() {
@@ -510,157 +453,6 @@ double LinearCRF::CalcLoglikelihoodFunction() {
      */
     return  sum_numerator - sum_denominator - l2;
 }
-   
-//calc alpha and beta and Z for all nodes in the graph.
-
-void LinearCRF::ForwardBackward(std::vector<std::string> seq, int seq_no) {
-    int x_size = seq.size();
-    (*ptr_start_node_)[seq_no].SetAlpha(0);
-    (*ptr_stop_node_)[seq_no].SetBeta(0);
-    int start_time, end_time;
-    start_time = clock();
-    for(int i=0; i<x_size; ++i){
-        for(int j=0; j<(*ptr_tag_set_matrix_)[seq_no].size(); ++j){
-            node_matrix_[seq_no][i][j]->CalcAlpha();
-#ifdef DEBUG_MODE
-            std::cout << "the alpha of node "<<i<<","<<j<<" is: "<<node_matrix_[i][j]->GetAlpha()<<std::endl;
-#endif
-        }
-    }
-    end_time = clock();
-#ifdef PERFORMANCE_CLOCK_TIME_
-    std::cout << "forward time is: "<< end_time - start_time <<std::endl;
-#endif
-    start_time = clock();
-    for (int i = x_size-1; i>=0 ; --i) {
-        for(int j=0; j<(*ptr_tag_set_matrix_)[seq_no].size(); ++j){
-            node_matrix_[seq_no][i][j]->CalcBeta();
-#ifdef DEBUG_MODE
-            std::cout << "the beta of node "<<i<<","<<j<<" is: "<<node_matrix_[i][j]->GetBeta()<<std::endl;
-#endif
-        }
-    }
-    end_time = clock();
-
-#ifdef PERFORMANCE_CLOCK_TIME_
-    std::cout << "backward time is: "<< end_time - start_time <<std::endl;
-#endif
-    start_time = clock();
-    (*ptr_Z_)[seq_no] = 0;
-    std::vector<Path *> stop_lpath= (*ptr_stop_node_)[seq_no].GetLPath();
-    for (int j = 0; j<(*ptr_tag_set_matrix_)[seq_no].size(); ++j) {
-        Node *p_node = stop_lpath[j]->GetLNode();
-//        (*ptr_Z_)[seq_no] = p_node->SumExp((*ptr_Z_)[seq_no],stop_lpath[j]->GetCost()*p_node->GetCost(),p_node->GetAlpha(),(j==0));
-        (*ptr_Z_)[seq_no] = p_node->LogSumExp((*ptr_Z_)[seq_no],stop_lpath[j]->GetCost()+p_node->GetCost(),p_node->GetAlpha(),(j==0));
-    }
-    end_time = clock();
-#ifdef PERFORMANCE_CLOCK_TIME_
-    std::cout << "Calc Z time is: "<< end_time - start_time <<std::endl;
-#endif
-#ifdef DEBUG_MODE_
-    std::cout<<"the value of pnode is: "<<(*ptr_Z_)[seq_no]<<std::endl;
-    std::vector<Path *> start_rpath= (*ptr_start_node_)[seq_no].GetRPath();
-    double beata_Z = 0;
-    for (int j = 0; j < (*ptr_tag_set_matrix_)[seq_no].size(); ++j) {
-        Node *p_node = start_rpath[j]->GetRNode();
-        beata_Z = p_node->LogSumExp(beata_Z, (*ptr_start_node_)[seq_no].GetCost() + start_rpath[j]->GetCost(),p_node->GetBeta(),(j==0));
-    }
-    std::cout << "Z_ derived by alpha is:" << beata_Z <<std::endl;
-#endif
-#ifdef DEBUG_MODE_
-    std::cout << "Z_ derived by beta is"<<beata_Z<<std::endl;
-    std::cout << "==========="<<std::endl;
-    for(int i=0; i<seq.size(); ++i){
-        double value = 0;
-        for(int k=0; k<(*ptr_tag_set_matrix_)[seq_no].size(); k++){
-            value = LogSumExp(value,node_matrix_[seq_no][i][k]->GetAlpha() + node_matrix_[seq_no][i][k]->GetBeta(),(value==0));
-        }
-        std::cout << i<<"th Z is: "<< value <<std::endl;
-    }
-#endif
-}
-
-void LinearCRF::Viterbi(std::vector<std::string> seq, int seq_no) {
-    (*ptr_start_node_)[seq_no].SetBestCost(1);
-    for(int i=0; i<seq.size(); ++i){
-        for(int j=0; j<(*ptr_tag_set_matrix_)[seq_no].size(); ++j){
-            SelectBestNode(node_matrix_[seq_no][i][j]);
-        }
-    }
-    //for the last node;
-    std::vector<Path *> ppath = (*ptr_stop_node_)[seq_no].GetLPath();
-    for(std::vector<Path *>::iterator it = ppath.begin(); it!=ppath.end(); ++it){
-        SelectBestNode(&((*ptr_stop_node_)[seq_no]));
-    }
-    //backtracking
-    ViterbiBackTracking(seq, seq_no);
-}
-
-void LinearCRF::SelectBestNode(Node *pNode) {
-    double best_cost = 0;
-    Node *p_best_node;
-    std::vector<Path *> ppath = pNode->GetLPath();
-    for(std::vector<Path *>::iterator it = ppath.begin(); it!=ppath.end(); ++it){
-        double cost =  (*it)->GetLNode()->GetBestCost() * ((*it)->GetCost() *  (*it)->GetLNode()->GetCost());
-        if(cost > best_cost){
-            best_cost = cost;
-            p_best_node = (*it)->GetLNode();
-        }
-    }
-    pNode->SetBestCost(best_cost);
-    pNode->SetPreNode(p_best_node);
-    //int x = p_best_node->GetX();
-    //int y = p_best_node->GetY();
-    //std::cout << "x and y are "<<x<<","<<y<<std::endl;
-}
-
-void LinearCRF::ViterbiBackTracking(std::vector<std::string> seq, int seq_no) {
-    Node *ptr_node = (*ptr_stop_node_)[seq_no].GetPreNode();
-    std::string str = ptr_tag_map_reverse_->find(ptr_node->GetY())->second;
-    //std::cout << "tag inferred by viterbi is:"<<str<<std::endl;
-    (*ptr_decoded_tag_)[seq_no][seq.size() - 1] = str;
-    for (int i = seq.size() - 2; i >= 0; --i) {
-        ptr_node = ptr_node->GetPreNode();
-        str = ptr_tag_map_reverse_->find(ptr_node->GetY())->second;
-        (*ptr_decoded_tag_)[seq_no][i] = str;
-    }
-}
-
-void LinearCRF::WriteDecodingTagtoFile() {
-    std::ofstream of("encodingfile.txt");
-    for(int seq_no = 0; seq_no < num_of_instance_; ++seq_no) {
-        std::vector<std::string> seq = (*ptr_seq_matrix_)[seq_no];
-        for(int i=0; i<seq.size(); i++){
-            of << seq[i] + " " + (*ptr_decoded_tag_)[seq_no][i];
-            of << std::endl;
-        }
-        of << ". . O";
-        of << std::endl;
-        of << std::endl;
-    }
-}
-
-void LinearCRF::PrintPath(Node *pNode) {
-    if(pNode->GetNodeID() == START_NODE_ID){
-        return;
-    }
-    std::vector<Path* > pPath = pNode->GetLPath();
-    for(std::vector<Path *>::iterator it = pPath.begin(); it != pPath.end(); ++it){
-        std::string lstr = ptr_tag_map_reverse_->find((*it)->GetLNode()->GetY())->second;
-        if((*it)->GetLNode()->GetNodeID()==START_NODE_ID){
-            lstr = "START_NODE";
-        }
-        std::string rstr;
-        if(pNode->GetNodeID() == STOP_NODE_ID){
-            rstr = "STOP_NODE";
-        }else{
-            rstr = ptr_tag_map_reverse_->find(pNode->GetY())->second;
-        }
-        std::cout <<"the feature(t) id is"<<(*it)->GetFeatureIndex()<<" and pair is "<<lstr<<","<<rstr<<std::endl;
-        //std::cout <<"the feature(e) id is"<<(*it)->GetLNode()->GetFeatureIndex()<<std::endl;
-        PrintPath((*it)->GetLNode());
-    }
-}
 
 void LinearCRF::GenerateSeqFromVector(std::vector<std::string> *ptr_vector,
                                std::vector<std::vector<std::string>> *ptr_seq_vector) {
@@ -707,7 +499,7 @@ void LinearCRF::CRFRun() {
         //calc loglikelihood function
         double loss_value = CalcLoglikelihoodFunction();
         std::cout << "loglikelihood is:"<<loss_value<<std::endl;
-        if(loss_value > CONVERGED_VALUE && k>100){
+        if(loss_value > CONVERGED_VALUE && k>5000){
             std::cout << "Training completed"<<std::endl;
             is_converged_ = true;
         }
@@ -728,42 +520,7 @@ void LinearCRF::SaveModelToFile() {
 void LinearCRF::Training() {
     CalcAllEmpiricalFi();
     BuildLattice();
-    //for test only;
-#ifdef DEBUG_MODE
-    PrintPath(ptr_stop_node_);
-#endif
     CRFRun();
     SaveModelToFile();
-    //run viterbi
-    for(int seq_no = 0; seq_no < num_of_instance_; ++seq_no) {
-        std::vector<std::string> seq = (*ptr_seq_matrix_)[seq_no];
-        Viterbi(seq, seq_no);
-    }
-    WriteDecodingTagtoFile();
-}
-
-void LinearCRF::Decoding() {
-    BuildLattice();
-    std::vector<double> *ptr_weight = ptr_feature_->GetWeightVector();
-    std::ifstream is("modelfile.txt");
-    std::string weightstr;
-    std::string::size_type sz;
-    int weight_index = 0;
-    while(getline(is,weightstr)){
-        double weight = std::stod(weightstr,&sz);
-        ptr_feature_->SetWeightVector(weight_index, weight);
-        weight_index++;
-    }
-    //calc cost
-    for(int seq_no = 0; seq_no < num_of_instance_; ++seq_no) {
-        std::vector<std::string> seq = (*ptr_seq_matrix_)[seq_no];
-        CalcCost(seq, seq_no);
-    }
-    //run viterbi
-    for(int seq_no = 0; seq_no < num_of_instance_; ++seq_no) {
-        std::vector<std::string> seq = (*ptr_seq_matrix_)[seq_no];
-        Viterbi(seq, seq_no);
-    }
-    WriteDecodingTagtoFile();
 }
 

@@ -4,12 +4,20 @@
 #include "crfthread.h"
 
 CRFThread::CRFThread(std::vector<Node> *ptr_start_node, std::vector<Node> *ptr_stop_node,
-                     std::vector<std::vector<std::vector<Node *>>> node_matrix, std::vector<double> *ptr_Z) {
+                     std::vector<std::vector<std::vector<Node *>>> node_matrix, std::vector<double> *ptr_Z,std::vector<double> *ptr_e) {
 
     ptr_start_node_ = ptr_start_node;
     ptr_stop_node_ = ptr_stop_node;
     node_matrix_ = node_matrix;
     ptr_Z_ = ptr_Z;
+    ptr_e_ = ptr_e;
+}
+
+CRFThread::CRFThread(std::vector<Node> *ptr_start_node, std::vector<Node> *ptr_stop_node,
+                     std::vector<std::vector<std::vector<Node *>>> node_matrix) {
+    ptr_start_node_ = ptr_start_node;
+    ptr_stop_node_ = ptr_stop_node;
+    node_matrix_ = node_matrix;
 }
 
 CRFThread::~CRFThread() {
@@ -120,4 +128,34 @@ void CRFThread::CalcCost(int x_size, int y_size, int seq_no,std::vector<double> 
 void CRFThread::CRFThreadRun(int x_size, int y_size, int seq_no, std::vector<double> *ptr_w_vector) {
     CalcCost(x_size,y_size,seq_no,ptr_w_vector);
     ForwardBackward(x_size,y_size,seq_no);
+    //CalcFeatureExpectation(x_size,y_size,seq_no);
+}
+
+void CRFThread::CRFThreadViterbi(int x_size, int y_size, int seq_no, std::vector<double> *ptr_w_vector) {
+    CalcCost(x_size,y_size,seq_no,ptr_w_vector);
+}
+
+void CRFThread::CalcFeatureExpectation(int x_size, int y_size, int seq_no) {
+    mutex_lock_.lock();
+    //cal expectation of the start node's right paths.
+    std::vector<Path *> ppath = (*ptr_start_node_)[seq_no].GetRPath();
+    double expectation = 0;
+    for (std::vector<Path *>::iterator it = ppath.begin(); it != ppath.end(); ++it) {
+        (*it)->CalcLogExpectation((*ptr_Z_)[seq_no], ptr_e_, &expectation);
+    }
+    //calc expectation for each node and its right path.
+    for(int i=0; i<x_size; ++i){
+        for(int j=0; j<y_size; ++j){
+            node_matrix_[seq_no][i][j]->CalcLogExpectation((*ptr_Z_)[seq_no],ptr_e_);
+#ifdef DEBUG_MODE
+            std::cout << "expectation of the node"<<i<< ", "<<j<< " is: "<< node_matrix_[i][j]->GetExpectation() <<std::endl;
+#endif
+        }
+    }
+    mutex_lock_.unlock();
+#ifdef DEBUG_MODE
+    for(int i=0; i<ptr_feature_->GetFeatureSize(); ++i){
+        std::cout << "feature expectation of the" <<i<<"th feature is"<<(*ptr_e_)[i]<<std::endl;
+    }
+#endif
 }

@@ -21,25 +21,34 @@ public:
     Feature(const char *feature_file_name);
 
     ~Feature();
-
+    //for path: a and b denote the left node and the right node, respectively.
+    //for node: a and b denote the node and the observation string, respectively.
+    //int GetFeatureIndex(std::pair<int, int> str_pair);
+    inline int GetFeatureIndex(std::pair<int, int> str_pair) {
+        if(ptr_feature_map_->find(str_pair) != ptr_feature_map_->end()){
+            return ptr_feature_map_->find(str_pair)->second;
+        } else{
+            return FEATURE_NO_EXIST;
+        }
+    }
     //void CalcCost(Node *ptr_node);
 
     //void CalcCost(Path *ptr_path);
-/*
-    inline void CalcCost(Node *ptrnode) {
-        double cost = DEFAULT_COST_VALUE;
+
+    inline void CalcCostDec(Node *ptrnode) {
+        double cost = DEFAULT_COST_VALUE_DEC;
         int observation = ptrnode->GetX();
         int y = ptrnode->GetY();
         int index = GetFeatureIndex(std::make_pair(observation,y));
         if(FEATURE_NO_EXIST != index){
             double weight = (*ptr_w_vector_)[index];
-//        cost = exp(weight);
-            cost = weight;
+            cost = exp(weight);
+            //cost = weight;
         } else{
             // std::cout << "index error"<<std::endl;
         }
         ptrnode->SetCost(cost);
-    }*/
+    }
     inline void CalcCost(Node *ptrnode) {
         double cost = DEFAULT_COST_VALUE;
         int index = ptrnode->GetFeatureIndex();
@@ -52,23 +61,23 @@ public:
         }
         ptrnode->SetCost(cost);
     }
-/*
-    inline void CalcCost(Path *ptrpath) {
-        double cost = DEFAULT_COST_VALUE;
+
+    inline void CalcCostDec(Path *ptrpath) {
+        double cost = DEFAULT_COST_VALUE_DEC;
         int lnodeY = ptrpath->GetLNode()->GetY();
         int rnodeY = ptrpath->GetRNode()->GetY();
         int index = GetFeatureIndex(std::make_pair(lnodeY, rnodeY));
         if (FEATURE_NO_EXIST != index) {
             //for the pair like (START, y)
             double weight = (*ptr_w_vector_)[index];
-//        cost = exp(weight);
-            cost = weight;
+            cost = exp(weight);
+//            cost = weight;
         } else{
             // std::cout << "index error"<<std::endl;
         }
         ptrpath->SetCost(cost);
     }
-*/
+
     inline void CalcCost(Path *ptrpath) {
         double cost = DEFAULT_COST_VALUE;
         int index = ptrpath->GetFeatureIndex();
@@ -82,16 +91,7 @@ public:
         ptrpath->SetCost(cost);
     }
 
-    //for path: a and b denote the left node and the right node, respectively.
-    //for node: a and b denote the node and the observation string, respectively.
-    //int GetFeatureIndex(std::pair<int, int> str_pair);
-    inline int GetFeatureIndex(std::pair<int, int> str_pair) {
-        if(ptr_feature_map_->find(str_pair) != ptr_feature_map_->end()){
-            return ptr_feature_map_->find(str_pair)->second;
-        } else{
-            return FEATURE_NO_EXIST;
-        }
-    }
+
 
     std::vector<double> *GetWeightVector();
 
@@ -129,7 +129,6 @@ private:
     int feature_size_edge_;
     int feature_size_node_;
     int feature_size_start_stop_;
-
 };
 
 

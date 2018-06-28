@@ -29,12 +29,13 @@ const double INITIAL_LOG_LIKEIHOOD = 10000;
 const double ALPHA_START = 0.01;
 const int RAND_MAX_NUM = 100;
 const double DEFAULT_COST_VALUE = 0;
+const double DEFAULT_COST_VALUE_DEC = 1;
 const int MINUS_LOG_EPSILON = 50;
 
-const double LEARNING_RATE = 0.2;
+const double LEARNING_RATE = 0.15;
 const double L2_FACTOR = 1;
-//const double CONVERGED_VALUE = -0.97;
-const double CONVERGED_VALUE = -0.09;
+const double CONVERGED_VALUE = -0.05;
+//const double CONVERGED_VALUE = -9.54;
 const int FEATURE_CODE_OFFSET = 500000;
 const int FEATURE_NO_EXIST = -100;
 const int START_NODE_FLAG = -100000;

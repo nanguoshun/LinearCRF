@@ -14,6 +14,7 @@
 #include "node.h"
 #include "path.h"
 #include "featuremanager.h"
+#include "crfthread.h"
 
 class Decoder{
 public:
@@ -32,6 +33,7 @@ public:
     void ReadModel();
     void ReadCoupus();
     void CalcCost(std::vector<std::string> seq, int seq_no);
+    void CalcCost();
     void Viterbi();
     void SaveResult();
 
@@ -50,6 +52,8 @@ public:
     void CalculateResult();
     void RewriteTrainandTestData(const char *origfile, const char *newfile);
     void FromVectorToSet();
+    void ThreadCalc(CRFThread *ptr_tast,int seq_no);
+    void ThreadStart();
 
 private:
     //
@@ -77,6 +81,8 @@ private:
     std::map<std::string, int> *ptr_x_corpus_map_;
     std::map<int, std::string> *ptr_x_corpus_map_reverse_;
     std::vector<std::set<std::string>> *ptr_tag_set_matrix_;
+    std::vector<std::thread>* ptr_thread_vector_;
+    int num_of_thread_;
 
 
 };

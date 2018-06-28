@@ -15,6 +15,7 @@ Node::Node(int x, int y) {
     beta_ = 0;
     expectation_ = 0;
     feature_index_ = FEATURE_NO_EXIST;
+    bestCost_ = 0;
 }
 
 Node::~Node() {

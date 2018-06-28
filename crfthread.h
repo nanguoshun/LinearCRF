@@ -16,11 +16,17 @@
 
 class CRFThread{
 public:
-    CRFThread(std::vector<Node> *ptr_stratnode,std::vector<Node> *ptr_stoonode,std::vector<std::vector<std::vector<Node *>>> node_matrix, std::vector<double> *ptr_Z);
+    CRFThread(std::vector<Node> *ptr_stratnode, std::vector<Node> *ptr_stoonode,
+              std::vector<std::vector<std::vector<Node *>>> node_matrix, std::vector<double> *ptr_Z,
+              std::vector<double> *ptr_e);
+    CRFThread(std::vector<Node> *ptr_start_node, std::vector<Node> *ptr_stop_node,
+                         std::vector<std::vector<std::vector<Node *>>> node_matrix);
     ~CRFThread();
     void CRFThreadRun(int x_size, int y_size, int seq_no, std::vector<double> *ptr_w_vector);
+    void CRFThreadViterbi(int x_size, int y_size, int seq_no, std::vector<double> *ptr_w_vector);
     void ForwardBackward(int x_size, int y_size, int seq_no);
     void CalcCost(int x_size, int y_size, int seq_no,std::vector<double> *ptr_w_vector);
+    void CalcFeatureExpectation(int x_size, int y_size, int seq_no);
     inline void CalcCost(Path *ptrpath, std::vector<double> *ptr_w_vector) {
         double cost = DEFAULT_COST_VALUE;
         int index = ptrpath->GetFeatureIndex();
@@ -51,6 +57,8 @@ private:
     std::vector<std::vector<std::vector<Node *>>> node_matrix_;
     //data related
     std::vector<double> *ptr_Z_;
+    std::vector<double> *ptr_e_;
+    std::mutex mutex_lock_;
 };
 
 #endif //CRF_CRFTHREAD_H
