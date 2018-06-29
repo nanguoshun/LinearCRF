@@ -177,7 +177,12 @@ bool DatasetMgr::Tokenized(char *ptr_line, const char *ptr_space, std::vector<st
                         ptr_string_line->push_back(std::to_string(DIGITAL_FLAG));
                     }
                 }else{
-                    ptr_string_line->push_back(ptr_line);
+                    //ptr_string_line->push_back(ptr_line);
+                    if(!isdigit(*ptr_line)){
+                        ptr_string_line->push_back(ptr_line);
+                    }else{ //unify as a FLAG if it is a digit, such as 120, 34.5.
+                        ptr_string_line->push_back(std::to_string(DIGITAL_FLAG));
+                    }
                 }
            // }else{
            //     return false;

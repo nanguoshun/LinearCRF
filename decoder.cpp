@@ -278,6 +278,7 @@ void Decoder::GenerateSeqFromVector(std::vector<std::string> *ptr_vector,
             continue;
         } else {
             seq.push_back(*it);
+            std::cout << "x is: "<<(*it)<<std::endl;
             //do not forget the last seq which doesn't contain a SPEARATOR_FLAG at the end.
             if (it == (ptr_vector->end() - 1)) {
                 ptr_seq_vector->push_back(seq);
@@ -325,11 +326,11 @@ void Decoder::CalcCost(std::vector<std::string> seq, int seq_no) {
     (*ptr_stop_node_)[seq_no].SetCost(DEFAULT_COST_VALUE_DEC);
     std::vector< Path*> ptr_start_rpath = (*ptr_start_node_)[seq_no].GetRPath();
     for(std::vector< Path*>::iterator it = ptr_start_rpath.begin(); it!= ptr_start_rpath.end(); ++it){
-        ptr_feature_->CalcCostDec((*it));
+        ptr_feature_->CalcCost((*it));
     }
     std::vector<Path*> ptr_stop_lpath = (*ptr_stop_node_)[seq_no].GetLPath();
     for(std::vector< Path*>::iterator it = ptr_stop_lpath.begin(); it!= ptr_stop_lpath.end(); ++it){
-        ptr_feature_->CalcCostDec((*it));
+        ptr_feature_->CalcCost((*it));
     }
     for(int i=0; i<seq.size(); ++i){
         for(int j=0; j<(*ptr_tag_set_matrix_)[seq_no].size(); ++j){
@@ -428,14 +429,15 @@ void Decoder::RewriteTrainandTestData(const char *origfile, const char *newfile)
         ss >> tag;
         ss >> bio;
 //        ofs << x + " "+bio+" "+tag<<std::endl;
-        ofs << x + " "+tag+" "+tag<<std::endl;
+//        ofs << x + " "+tag+" "+tag<<std::endl;
+        ofs <<x+" "+tag<<std::endl;
 //        ofs << x +" "+tag<<std::endl;
     }
 }
 
 void Decoder::CalculateResult() {
 //    std::ifstream ifs("encodingfile.txt");
-    std::ifstream ifs("test_info");
+    std::ifstream ifs("test_info_test");
     std::string str;
     double correct_prediction = 0;
     double all_prediction = 0;
@@ -447,9 +449,11 @@ void Decoder::CalculateResult() {
         ss >> tmp;
         ss >> ground_truth;
         ss >> predicted_str;
-        all_prediction ++;
-        if(ground_truth == predicted_str){
-            correct_prediction++;
+        if("." != tmp){
+            all_prediction ++;
+            if(ground_truth == predicted_str){
+                correct_prediction++;
+            }
         }
     }
     double correct_ratio = correct_prediction / all_prediction;

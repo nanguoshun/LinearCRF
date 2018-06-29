@@ -2,12 +2,12 @@
 #include "decoder.h"
 int main(int argc, char **argv) {
     bool is_traing = true;
-    bool is_decoding = true;
+    bool is_decoding = false;
     bool is_calc_result = false;
     if(is_calc_result){
         Decoder *ptr_decoder = new Decoder();
         ptr_decoder->CalculateResult();
-//        ptr_decoder->RewriteTrainandTestData("test.data","newtest.data");
+        //ptr_decoder->RewriteTrainandTestData("train.data","newtrain.data");
     } else{
         if(!is_decoding){
             DatasetMgr *ptr_datamgr_training = new DatasetMgr(true);

@@ -411,7 +411,7 @@ void LinearCRF::CalcGradient() {
         double empirical_e_k = (*ptr_empirical_e_)[k];
         double e_k = (*ptr_e_)[k];
         double pre_w_k = (*ptr_weight)[k];
-        double penalty = 0; //pre_w_k / (L2_FACTOR * L2_FACTOR);
+        double penalty = 2 * pre_w_k * L2_FACTOR;
         (*ptr_gradient_)[k] = empirical_e_k - e_k - penalty;
         //std::cout << "the gradient of the "<<k<<"th feature is: "<<(*ptr_gradient_)[k]<<std::endl;
 #ifdef DEBUG_MODE_
@@ -444,13 +444,12 @@ double LinearCRF::CalcLoglikelihoodFunction() {
 //        sum_denominator += (*ptr_Z_)[seq_no];
     }
     double l2 = 0;
-    /*
+
     for (int i = 0; i < feature_size; ++i) {
         double w = (*(ptr_feature_->GetWeightVector()))[i];
-        l2 += (w * w) / (2 * L2_FACTOR * L2_FACTOR);
+        l2 += (w * w)  * L2_FACTOR;
     }
     l2 = 0;
-     */
     return  sum_numerator - sum_denominator - l2;
 }
 
@@ -499,7 +498,7 @@ void LinearCRF::CRFRun() {
         //calc loglikelihood function
         double loss_value = CalcLoglikelihoodFunction();
         std::cout << "loglikelihood is:"<<loss_value<<std::endl;
-        if(loss_value > CONVERGED_VALUE && k>5000){
+        if(loss_value > CONVERGED_VALUE && k>15000){
             std::cout << "Training completed"<<std::endl;
             is_converged_ = true;
         }

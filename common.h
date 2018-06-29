@@ -32,9 +32,9 @@ const double DEFAULT_COST_VALUE = 0;
 const double DEFAULT_COST_VALUE_DEC = 1;
 const int MINUS_LOG_EPSILON = 50;
 
-const double LEARNING_RATE = 0.15;
-const double L2_FACTOR = 1;
-const double CONVERGED_VALUE = -0.05;
+const double LEARNING_RATE = 0.05;
+const double L2_FACTOR = 0.1;
+const double CONVERGED_VALUE = -0.1;
 //const double CONVERGED_VALUE = -9.54;
 const int FEATURE_CODE_OFFSET = 500000;
 const int FEATURE_NO_EXIST = -100;
