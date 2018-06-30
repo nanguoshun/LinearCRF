@@ -85,8 +85,7 @@ void Decoder::DeleteLattice() {
 
 
 void Decoder::ReadModel() {
-
-    std::ifstream is("file.txt");
+    std::ifstream is("modelfile.txt");
     std::string weightstr;
     std::string::size_type sz;
     int weight_index = 0;
@@ -175,7 +174,6 @@ void Decoder::BuildLattice() {
 }
 
 
-
 void Decoder::BuildNode(std::vector<std::string> seq, int seq_no) {
     //create each row
     for (int i = 0; i < seq.size(); ++i) {
@@ -185,7 +183,8 @@ void Decoder::BuildNode(std::vector<std::string> seq, int seq_no) {
     //create node in each row
     for (int i = 0; i < seq.size(); ++i) {
         for (std::set<std::string>::iterator it = (*ptr_tag_set_matrix_)[seq_no].begin(); it != (*ptr_tag_set_matrix_)[seq_no].end(); ++it) {
-            //std::cout << "the string value of x and y are: " << seq[i] << ", " << (*it) << std::endl;
+//        for (std::set<std::string>::iterator it = ptr_tag_set_->begin(); it != ptr_tag_set_->end(); ++it) {
+            std::cout << "the string value of x and y are: " << seq[i] << ", " << (*it) << std::endl;
             int observ = ptr_x_corpus_map_->find(seq[i])->second;
             int tag = ptr_tag_map_->find((*it))->second;
             //std::cout << "tag Y is"<<tag<<std::endl;
@@ -202,7 +201,6 @@ void Decoder::BuildNode(std::vector<std::string> seq, int seq_no) {
         }
     }
 }
-
 
 void Decoder::SetPathFeature(std::pair<int, int> feature_pair, Path *ppath) {
     int feature_index = FEATURE_NO_EXIST;
@@ -263,9 +261,8 @@ void Decoder::BuildRPath(std::vector<std::string> seq, int seq_no) {
         SetPathFeature(std::make_pair(START_NODE_FLAG-seq_no,node_matrix_[seq_no][0][k]->GetY()),ppath);
         (*ptr_start_node_)[seq_no].AddPath(ppath, false);
     }
-    std::cout << seq.size() <<std::endl;
-
 }
+
 
 void Decoder::GenerateSeqFromVector(std::vector<std::string> *ptr_vector,
                                       std::vector<std::vector<std::string>> *ptr_seq_vector) {
@@ -347,45 +344,51 @@ void Decoder::CalcCost(std::vector<std::string> seq, int seq_no) {
                 std::cout << "this is the last row"<<std::endl;
             }
 #endif
-            for(std::vector<Path *>::iterator it = rpath.begin(); it!=rpath.end(); ++it){
-                ptr_feature_->CalcCost(*it);
-            }
         }
     }
 }
 
 void Decoder::Viterbi(std::vector<std::string> seq, int seq_no) {
-    (*ptr_start_node_)[seq_no].SetBestCost(1);
+    (*ptr_start_node_)[seq_no].SetBestCost(0);
     for(int i=0; i<seq.size(); ++i){
         for(int j=0; j<(*ptr_tag_set_matrix_)[seq_no].size(); ++j){
-            SelectBestNode(node_matrix_[seq_no][i][j]);
+            if(i==seq.size()-1){
+                std::cout << i<< std::endl;
+            }
+            SelectBestNode(node_matrix_[seq_no][i][j], i, j);
         }
     }
     //for the last node;
-    std::vector<Path *> ppath = (*ptr_stop_node_)[seq_no].GetLPath();
-    for(std::vector<Path *>::iterator it = ppath.begin(); it!=ppath.end(); ++it){
-        SelectBestNode(&((*ptr_stop_node_)[seq_no]));
-    }
+    SelectBestNode(&((*ptr_stop_node_)[seq_no]),0, 0);
     //backtracking
     ViterbiBackTracking(seq, seq_no);
 }
 
-void Decoder::SelectBestNode(Node *pNode) {
+void Decoder::SelectBestNode(Node *pNode, int i, int j) {
     double best_cost = 0;
     Node *p_best_node;
     std::vector<Path *> ppath = pNode->GetLPath();
+    int count = 0;
+    double pre_cost = 0;
     for(std::vector<Path *>::iterator it = ppath.begin(); it!=ppath.end(); ++it){
-        double cost =  (*it)->GetLNode()->GetBestCost() * ((*it)->GetCost() * (*it)->GetLNode()->GetCost());
-        if(cost >= best_cost){
+        double l_bestcost = (*it)->GetLNode()->GetBestCost();
+        double pathcost = (*it)->GetCost();
+        double l_nodecost = (*it)->GetLNode()->GetCost();
+//        double cost =  (*it)->GetLNode()->GetBestCost() + ((*it)->GetCost() + (*it)->GetLNode()->GetCost());
+        double cost =  l_bestcost + pathcost + l_nodecost;
+        if(cost > best_cost){
+            pre_cost = l_bestcost;
             best_cost = cost;
             p_best_node = (*it)->GetLNode();
         }
+        count++;
     }
+    pNode->SetPreCost(pre_cost);
     pNode->SetBestCost(best_cost);
     pNode->SetPreNode(p_best_node);
-    //int x = p_best_node->GetX();
-    //int y = p_best_node->GetY();
-    //std::cout << "x and y are "<<x<<","<<y<<std::endl;
+    int x = p_best_node->GetX();
+    int y = p_best_node->GetY();
+    std::cout << i << ","<<j<< " node's best pre_node of x and y are " <<x<<","<<y<<std::endl;
 }
 
 void Decoder::ViterbiBackTracking(std::vector<std::string> seq, int seq_no) {
@@ -437,7 +440,7 @@ void Decoder::RewriteTrainandTestData(const char *origfile, const char *newfile)
 
 void Decoder::CalculateResult() {
 //    std::ifstream ifs("encodingfile.txt");
-    std::ifstream ifs("test_info_test");
+    std::ifstream ifs("test_info");
     std::string str;
     double correct_prediction = 0;
     double all_prediction = 0;
@@ -478,7 +481,6 @@ void Decoder::Decoding() {
     //calc cost
     //CalcCost();
     for(int seq_no = 0; seq_no < num_of_instance_; ++seq_no) {
-        std::cout << (*ptr_seq_matrix_)[seq_no].size() <<std::endl;
         std::vector<std::string> seq = (*ptr_seq_matrix_)[seq_no];
         CalcCost(seq, seq_no);
     }

@@ -46,7 +46,7 @@ public:
     void GenerateSeqFromVector(std::vector<std::string> *ptr_vector,std::vector<std::vector<std::string>> *ptr_seq_vector);
 
     void Viterbi(std::vector<std::string> seq, int seq_no);
-    void SelectBestNode(Node *pNode);
+    void SelectBestNode(Node *pNode, int i, int j);
     void ViterbiBackTracking(std::vector<std::string> seq, int seq_no);
     void WriteDecodingTagtoFile();
     void CalculateResult();

@@ -21,6 +21,8 @@ public:
     void CalcExpectation(double Z, std::vector<double> *ptr_expectation);
     void CalcLogExpectation(double Z, std::vector<double> *ptr_expectation);
     void SetCost(double cost);
+    void SetPreCost(double cost);
+    double GetPreCost();
     /**
      *
      * @param iteration_alpha : for each \alpha_{i-1} * cost
@@ -86,6 +88,7 @@ private:
     double beta_;
     double expectation_;
     double bestCost_; //for viterbi;
+    double pre_cost_;
     Node *ptr_pre_node_; // for viterbi;
     std::vector<Path *> lpath_; //edges in the left
     std::vector<Path *> rpath_; //edges in the right

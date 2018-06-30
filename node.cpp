@@ -153,3 +153,11 @@ void Node::SetNodeID(int id) {
 int Node::GetNodeID() {
     return node_id_;
 }
+
+double Node::GetPreCost() {
+    return pre_cost_;
+}
+
+void Node::SetPreCost(double cost) {
+    pre_cost_ = cost;
+}

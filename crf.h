@@ -12,6 +12,7 @@
 #include <math.h>
 #include <thread>
 #include "crfthread.h"
+#include "lbfgs.h"
 
 class LinearCRF{
 public:
@@ -36,11 +37,13 @@ public:
     void BuildLPath(std::vector<std::string> seq, int seq_no);
     void BuildRPath(std::vector<std::string> seq, int seq_no);
     void DeleteLattice();
-    void UpdateWeight();
+    void SGDUpdateWeight();
+    bool LBFGSUpdateWeight();
     void ResetParameters();
     void SetPathFeature(std::pair<int,int> feature_pair, Path *ppath);
     void GenerateSeqFromVector(std::vector<std::string> *ptr_vector,std::vector<std::vector<std::string>> *ptr_seq_vector);
     void SaveModelToFile();
+
     inline double LogSumExp(double x, double y, bool isStart){
         // calc \alpha * cost;
         //      double value = cost * lalpha;
@@ -97,7 +100,7 @@ private:
     // for multiple threading
     int num_of_thread_;
     std::vector<std::thread>* ptr_thread_vector_;
-
+    CRFPP::LBFGS * ptr_lbfgs_;
 };
 
 #endif //CRF_CRF_LEARNING_H

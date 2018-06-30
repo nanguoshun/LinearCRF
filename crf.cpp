@@ -38,6 +38,7 @@ void LinearCRF::AllocateSpace() {
     ptr_tag_seq_ = new std::vector<std::vector<std::string>>;
     ptr_start_node_ = new std::vector<Node>;
     ptr_stop_node_ = new std::vector<Node>;
+    ptr_lbfgs_ = new CRFPP::LBFGS();
 }
 
 void LinearCRF::Init() {
@@ -134,6 +135,7 @@ void LinearCRF::DeleteLattice() {
     delete ptr_tag_set_matrix_;
     delete ptr_decoded_tag_;
 
+    delete ptr_lbfgs_;
 }
 
 void LinearCRF::ResetParameters() {
@@ -200,7 +202,7 @@ void LinearCRF::BuildNode(std::vector<std::string> seq, int seq_no) {
     for (int i = 0; i < seq.size(); ++i) {
         for (std::set<std::string>::iterator it = (*ptr_tag_set_matrix_)[seq_no].begin(); it != (*ptr_tag_set_matrix_)[seq_no].end(); ++it) {
 //        for (std::set<std::string>::iterator it = ptr_tag_set_->begin(); it != ptr_tag_set_->end(); ++it) {
-            std::cout << "the string value of x and y are: " << seq[i] << ", " << (*it) << std::endl;
+//            std::cout << "the string value of x and y are: " << seq[i] << ", " << (*it) << std::endl;
             int observ = ptr_x_corpus_map_->find(seq[i])->second;
             int tag = ptr_tag_map_->find((*it))->second;
             //std::cout << "tag Y is"<<tag<<std::endl;
@@ -301,15 +303,16 @@ double LinearCRF::CalcEmpiricalFi(std::vector<std::string> x_seq, std::vector<st
         int y_i_1 = ptr_tag_map_->find(tag_seq[i])->second;
         if(i == tag_size-1){
              y_i = STOP_NODE_FLAG-seq_no;
+            //std::cout << ptr_tag_map_->find(tag_seq[i])->first<<", to stop"<<std::endl;
         } else{
              y_i = ptr_tag_map_->find(tag_seq[i+1])->second;
-             std::cout << ptr_tag_map_->find(tag_seq[i+1])->first<<std::endl;
+            //std::cout << ptr_tag_map_->find(tag_seq[i])->first<<", "<<ptr_tag_map_->find(tag_seq[i+1])->first<<std::endl;
         }
         index = ptr_feature_->GetFeatureIndex(std::make_pair(y_i_1,y_i));
         //count the num for each tag sequence
         (*ptr_empirical_e_)[index] += 1;
         (*ptr_feature_bit_vector_)[index] += 1;
-#ifdef DEBUG_MODE
+#ifdef DEBUG_MODE_
         std::cout << "the value of tag "<<y_i_1 << ", "<<y_i << " is: "<< (*ptr_empirical_e_)[index] <<",index is:"<<index<<std::endl;
 #endif
     }
@@ -322,7 +325,7 @@ double LinearCRF::CalcEmpiricalFi(std::vector<std::string> x_seq, std::vector<st
                 //count the num for each
                 (*ptr_empirical_e_)[index] += 1;
                 (*ptr_feature_bit_vector_)[index] += 1;
-#ifdef DEBUG_MODE
+#ifdef DEBUG_MODE_
                 std::cout << "the value of observ and tag "<<x<< ", "<<y << " is: "<< (*ptr_empirical_e_)[index] <<std::endl;
 #endif
             }
@@ -331,6 +334,11 @@ double LinearCRF::CalcEmpiricalFi(std::vector<std::string> x_seq, std::vector<st
     index = ptr_feature_->GetFeatureIndex(std::make_pair(ptr_tag_map_->find(tag_seq[x_seq.size()-1])->second,STOP_NODE_FLAG-seq_no));
     (*ptr_empirical_e_)[index] = 1;
     (*ptr_feature_bit_vector_)[index] = 1;
+#ifdef DEBUG_MODE_
+    for(int i=0; i<ptr_empirical_e_->size(); ++i){
+        std::cout << (*ptr_empirical_e_)[i] <<std::endl;
+    }
+#endif
 }
 
 void LinearCRF::CalcFeatureExpectation(std::vector<std::string> seq, int seq_no) {
@@ -412,20 +420,32 @@ void LinearCRF::CalcGradient() {
         double e_k = (*ptr_e_)[k];
         double pre_w_k = (*ptr_weight)[k];
         double penalty = 2 * pre_w_k * L2_FACTOR;
-        (*ptr_gradient_)[k] = empirical_e_k - e_k - penalty;
-        //std::cout << "the gradient of the "<<k<<"th feature is: "<<(*ptr_gradient_)[k]<<std::endl;
+//        (*ptr_gradient_)[k] = empirical_e_k - e_k - penalty;
+        (*ptr_gradient_)[k] = -(empirical_e_k - e_k - penalty);
 #ifdef DEBUG_MODE_
         std::cout << "the gradient of the "<<k<<"th feature is: "<<(*ptr_gradient_)[k]<<std::endl;
 #endif
     }
 }
 
-void LinearCRF::UpdateWeight() {
+bool LinearCRF::LBFGSUpdateWeight() {
+    std::vector<double> *ptr_weight = ptr_feature_->GetWeightVector();
+    int feature_size = ptr_feature_->GetFeatureSize();
+    double obj = CalcLoglikelihoodFunction();
+    bool isL1 = false;
+    if(ptr_lbfgs_->optimize(feature_size,&((*ptr_weight)[0]),obj,&((*ptr_e_)[0]),isL1,1) <=0 ){
+        return false;
+    }
+    return true;
+}
+
+void LinearCRF::SGDUpdateWeight() {
     std::vector<double> *ptr_weight = ptr_feature_->GetWeightVector();
     int size = ptr_feature_->GetFeatureSize();
     for(int k=0; k<size; ++k){
-        double weight = (*ptr_weight)[k] + LEARNING_RATE * (*ptr_gradient_)[k];
+        double weight = (*ptr_weight)[k] - LEARNING_RATE * (*ptr_gradient_)[k];
         ptr_feature_->SetWeightVector(k,weight);
+       // std::cout << k <<"th feature weight is: "<<(*ptr_feature_->GetWeightVector())[k] <<std::endl;
     }
 }
 
@@ -450,7 +470,7 @@ double LinearCRF::CalcLoglikelihoodFunction() {
         l2 += (w * w)  * L2_FACTOR;
     }
     l2 = 0;
-    return  sum_numerator - sum_denominator - l2;
+    return  -(sum_numerator - sum_denominator - l2);
 }
 
 void LinearCRF::GenerateSeqFromVector(std::vector<std::string> *ptr_vector,
@@ -490,15 +510,16 @@ void LinearCRF::CRFRun() {
         std::cout << "calc gradient time is: "<<end_time-start_time<<std::endl;
 #endif
         start_time = clock();
-        UpdateWeight();
+        SGDUpdateWeight();
+        //LBFGSUpdateWeight();
         end_time = clock();
 #ifdef PERFORMANCE_CLOCK_TIME
         std::cout << "update weight time is: "<<end_time-start_time<<std::endl;
 #endif
         //calc loglikelihood function
         double loss_value = CalcLoglikelihoodFunction();
-        std::cout << "loglikelihood is:"<<loss_value<<std::endl;
-        if(loss_value > CONVERGED_VALUE && k>15000){
+        std::cout << k <<" th epoch and loglikelihood is:"<<loss_value<<std::endl;
+        if(loss_value < CONVERGED_VALUE && k > 1000){
             std::cout << "Training completed"<<std::endl;
             is_converged_ = true;
         }
@@ -510,7 +531,7 @@ void LinearCRF::SaveModelToFile() {
     std::ofstream of("modelfile.txt");
     int size = ptr_feature_->GetFeatureSize();
     for (int i = 0; i < size; ++i) {
-        double weight = (*ptr_e_)[i];
+        double weight = (*ptr_feature_->GetWeightVector())[i];
         of << std::to_string(weight);
         of << std::endl;
     }

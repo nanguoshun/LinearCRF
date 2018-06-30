@@ -37,15 +37,10 @@ public:
 
     inline void CalcCostDec(Node *ptrnode) {
         double cost = DEFAULT_COST_VALUE_DEC;
-        int observation = ptrnode->GetX();
-        int y = ptrnode->GetY();
-        int index = GetFeatureIndex(std::make_pair(observation,y));
+        int index = ptrnode->GetFeatureIndex();
         if(FEATURE_NO_EXIST != index){
             double weight = (*ptr_w_vector_)[index];
             cost = exp(weight);
-            //cost = weight;
-        } else{
-            // std::cout << "index error"<<std::endl;
         }
         ptrnode->SetCost(cost);
     }
@@ -54,30 +49,20 @@ public:
         int index = ptrnode->GetFeatureIndex();
         if(FEATURE_NO_EXIST != index){
             double weight = (*ptr_w_vector_)[index];
-//        cost = exp(weight);
             cost = weight;
-        } else{
-            // std::cout << "index error"<<std::endl;
         }
         ptrnode->SetCost(cost);
     }
-
     inline void CalcCostDec(Path *ptrpath) {
         double cost = DEFAULT_COST_VALUE_DEC;
-        int lnodeY = ptrpath->GetLNode()->GetY();
-        int rnodeY = ptrpath->GetRNode()->GetY();
-        int index = GetFeatureIndex(std::make_pair(lnodeY, rnodeY));
+        int index = ptrpath->GetFeatureIndex();
         if (FEATURE_NO_EXIST != index) {
             //for the pair like (START, y)
             double weight = (*ptr_w_vector_)[index];
             cost = exp(weight);
-//            cost = weight;
-        } else{
-            // std::cout << "index error"<<std::endl;
         }
         ptrpath->SetCost(cost);
     }
-
     inline void CalcCost(Path *ptrpath) {
         double cost = DEFAULT_COST_VALUE;
         int index = ptrpath->GetFeatureIndex();
@@ -85,18 +70,11 @@ public:
             //for the pair like (START, y)
             double weight = (*ptr_w_vector_)[index];
             cost = weight;
-        } else{
-            // std::cout << "index error"<<std::endl;
         }
         ptrpath->SetCost(cost);
     }
-
-
-
     std::vector<double> *GetWeightVector();
-
     int GetFeatureSize();
-
     void CreateFeatureMap(std::vector<std::string> *ptr_observ_vector, std::vector<std::string> *ptr_tag_vector,
                           std::map<std::string, int> *ptr_x_corpus_map,
                           std::map<int, std::string> *ptr_tag_map_reverse, int num_of_seq);
